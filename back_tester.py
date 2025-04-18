@@ -49,7 +49,9 @@ class BackTester:
         self.current_portfolio[ticker].add(Position(
             ticker=ticker,
             amount=amount,
-            entered_price=price
+            entered_price=price,
+            # sell_above=price*1.05,
+            # sell_below=price*0.95
             )
         )
     
@@ -102,7 +104,7 @@ class BackTester:
 
             for ticker in self.env.tickers:
                 if ticker in self.current_portfolio:
-                    for position in self.current_portfolio[ticker]:
+                    for position in list(self.current_portfolio[ticker]):
                         if self._shouldLiquidatePosition(position=position, date=current_date):
                             self._liquidatePosition(position, current_date)
 
