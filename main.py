@@ -7,7 +7,7 @@ from strategies.sma_strategy import SMABuyStrategy
 data_df = pd.read_csv('data.csv')
 
 env = Environment(
-    tickers=["AAPL", "GOOG"],
+    tickers=["JPM", "AAPL", "NVDA", "GOOG"],
     start_date=date(2020, 10, 16), 
     end_date=date(2025, 4, 16), 
     cash=1000, 

@@ -1,43 +1,68 @@
 import pandas as pd
 from datetime import date
-from typing import Optional, List
+from typing import Optional, List, Dict
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class TickerData:
+    open: float
+    close: float
+    high: float
+    low: float
+    volume: int
 
 class MarketData:
     def __init__(self, all_data_df: pd.DataFrame, tickers: Optional[List[str]] = None):
-        self.df = all_data_df.copy()
-        self.df['date'] = pd.to_datetime(self.df['date']).dt.date
+        self.data: Dict[date, Dict[str, TickerData]] = {}
+        self.trading_dates: List[date] = []
+
+        df = all_data_df.copy()
+        df['date'] = pd.to_datetime(df['date']).dt.date
         if tickers:
-            self.df = self.df[self.df['ticker'].isin(tickers)].reset_index(drop=True)
+            df = df[df['ticker'].isin(tickers)]
+
+        for row in df.itertuples(index=False):
+            d = row.date
+            t = row.ticker
+
+            if d not in self.data:
+                self.data[d] = {}
+                self.trading_dates.append(d)
+
+            self.data[d][t] = TickerData(
+                open=row.open,
+                close=row.close,
+                high=row.high,
+                low=row.low,
+                volume=row.volume
+            )
+
+        self.trading_dates.sort()
 
     def get_trading_dates_before(self, target_date: date, n: int) -> List[date]:
-        dates = sorted(self.df['date'].unique())
-        before = [d for d in dates if d < target_date]
+        before = [d for d in self.trading_dates if d < target_date]
         return before[-n:] if len(before) >= n else before
 
-    def get_slice(self, upToDate: date) -> "MarketData":
-        sliced_df = self.df[self.df['date'] <= upToDate].copy()
-        return MarketData(sliced_df)
-
     def is_trading_date(self, check_date: date) -> bool:
-        return check_date in self.df['date'].values
+        return check_date in self.data
 
-    def _get_price(self, ticker: str, day: date, column: str) -> float:
-        row = self.df[(self.df['ticker'] == ticker) & (self.df['date'] == day)]
-        if row.empty:
+    def _get_data(self, ticker: str, day: date) -> TickerData:
+        try:
+            return self.data[day][ticker]
+        except KeyError:
             raise ValueError(f"No data for {ticker} on {day}")
-        return float(row.iloc[0][column])
 
     def get_open_price(self, ticker: str, day: date) -> float:
-        return self._get_price(ticker, day, 'open')
+        return self._get_data(ticker, day).open
 
     def get_close_price(self, ticker: str, day: date) -> float:
-        return self._get_price(ticker, day, 'close')
+        return self._get_data(ticker, day).close
 
     def get_high_price(self, ticker: str, day: date) -> float:
-        return self._get_price(ticker, day, 'high')
+        return self._get_data(ticker, day).high
 
     def get_low_price(self, ticker: str, day: date) -> float:
-        return self._get_price(ticker, day, 'low')
+        return self._get_data(ticker, day).low
 
-    def get_volume(self, ticker: str, day: date) -> float:
-        return self._get_price(ticker, day, 'volume')
+    def get_volume(self, ticker: str, day: date) -> int:
+        return self._get_data(ticker, day).volume
