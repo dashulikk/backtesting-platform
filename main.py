@@ -23,7 +23,7 @@ class SMABuyStrategy(BuyStrategy):
         return True
     
     def get_exposure(self) -> float:
-        return 0.1
+        return 1.0
 
 @dataclass
 class Environment:
@@ -95,7 +95,7 @@ class BackTester:
         available_cash_to_buy = self.current_cash * exposure
 
         # Need at least 1 cent to trade
-        if self.current_cash - available_cash_to_buy <= 0.01:
+        if available_cash_to_buy <= 0.01:
             return
         
         if ticker not in self.current_portfolio:
@@ -142,7 +142,7 @@ class BackTester:
 
 data_df = pd.read_csv('data.csv')
 
-env = Environment(tickers=["JPM"], start_date=date(2022, 3, 8), end_date=date(2025, 4, 16), cash=1000, strategy=SMABuyStrategy())
+env = Environment(tickers=["AAPL"], start_date=date(2024, 10, 16), end_date=date(2025, 4, 16), cash=1000, strategy=SMABuyStrategy())
 tester = BackTester(data_df=data_df, env=env)
 tester.backtest()
 
