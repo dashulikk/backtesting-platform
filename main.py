@@ -7,11 +7,11 @@ from strategies.sma_strategy import SMABuyStrategy
 data_df = pd.read_csv('data.csv')
 
 env = Environment(
-    tickers=["AAPL"], 
+    tickers=["AAPL", "GOOG"],
     start_date=date(2024, 10, 16), 
     end_date=date(2025, 4, 16), 
     cash=1000, 
-    strategy=SMABuyStrategy(days=20)
+    strategy=SMABuyStrategy(days=20, exposure=0.05)
 )
 
 tester = BackTester(data_df=data_df, env=env)

@@ -3,11 +3,16 @@ from datetime import date
 from strategies.buy_base_strategy import BuyStrategy
 
 class SMABuyStrategy(BuyStrategy):
-    def __init__(self, days):
+    def __init__(self, days,exposure):
         self.days = days
+        self.exposure=exposure
 
     def shouldBuy(self, date: date, ticker: str, market_data: MarketData) -> bool:
-        return False
+        price = market_data.get_close_price(ticker, date)
+        if price > 140:
+            return True
+        else:
+            return False
     
     def get_exposure(self) -> float:
-        return 1.0
+        return self.exposure
