@@ -1,25 +1,29 @@
 import pandas as pd
-from typing import List
+from typing import List, Dict, Optional
 from datetime import date, timedelta
 from dataclasses import dataclass
 
 from abc import ABC, abstractmethod
 
-
 class BuyStrategy(ABC):
     @abstractmethod
-    def shouldBuy(self, date: date, data_df: pd.DataFrame) -> bool:
+    def shouldBuy(self, date: date, ticker: str, market_data: "MarketData") -> bool:
+        pass
+
+    @abstractmethod
+    def get_exposure(self) -> float:
+        """
+        When receiving a buy signal - buy stock worth some percentage of cash that we have.
+        For example, when receiving a buy signal for AAPL, buy AAPL using 10% of cash we have.
+        """
         pass
 
 class SMABuyStrategy(BuyStrategy):
-    def shouldBuy(self, date: date, data_df: pd.DataFrame) -> bool:
+    def shouldBuy(self, date: date, ticker: str, market_data: "MarketData") -> bool:
         return False
-        
-
-class SMAStrategy:
-    def __init__(self, days, data):
-        self.days = days
-        self.data = data
+    
+    def get_exposure(self) -> float:
+        return 0.1
 
 @dataclass
 class Environment:
@@ -27,69 +31,107 @@ class Environment:
     start_date: date
     end_date: date
     cash: int
-
-@dataclass
-class Simulation:
-    env: Environment
     strategy: BuyStrategy
 
+@dataclass
+class Holdings:
+    cash: int
+    portfolio: Dict[str, float]
+    returns: float
+
+class MarketData:
+    def __init__(self, all_data_df: pd.DataFrame, tickers: Optional[List[str]] = None):
+        self.df = all_data_df.copy()
+        self.df['date'] = pd.to_datetime(self.df['date']).dt.date
+        if tickers:
+            self.df = self.df[self.df['ticker'].isin(tickers)].reset_index(drop=True)
+
+    def get_trading_dates_before(self, target_date: date, n: int) -> List[date]:
+        dates = sorted(self.df['date'].unique())
+        before = [d for d in dates if d < target_date]
+        return before[-n:] if len(before) >= n else before
+
+    def get_slice(self, upToDate: date) -> "MarketData":
+        sliced_df = self.df[self.df['date'] <= upToDate].copy()
+        return MarketData(sliced_df)
+
+    def is_trading_date(self, check_date: date) -> bool:
+        return check_date in self.df['date'].values
+
+    def _get_price(self, ticker: str, day: date, column: str) -> float:
+        row = self.df[(self.df['ticker'] == ticker) & (self.df['date'] == day)]
+        if row.empty:
+            raise ValueError(f"No data for {ticker} on {day}")
+        return float(row.iloc[0][column])
+
+    def get_open_price(self, ticker: str, day: date) -> float:
+        return self._get_price(ticker, day, 'open')
+
+    def get_close_price(self, ticker: str, day: date) -> float:
+        return self._get_price(ticker, day, 'close')
+
+    def get_high_price(self, ticker: str, day: date) -> float:
+        return self._get_price(ticker, day, 'high')
+
+    def get_low_price(self, ticker: str, day: date) -> float:
+        return self._get_price(ticker, day, 'low')
+
+    def get_volume(self, ticker: str, day: date) -> float:
+        return self._get_price(ticker, day, 'volume')
 
 class BackTester:
-    def __init__(self, data_df: pd.DataFrame, sim: Simulation):
-        self.data_df = data_df
-        self.sim = sim
+    def __init__(self, data_df: pd.DataFrame, env: Environment):
+        self.all_market_data = MarketData(data_df, env.tickers)
+        self.env = env
+
+        self.holdings: Dict[date, Holdings] = {}
         
-        self.cash = sim.env.cash
-        self.portfolio = {}
-        self.stock_name = "BAML"
+        self.current_cash = env.cash
+        self.current_portfolio: Dict[str, float] = {}
+
+    def _simulate_long_position(self, ticker: str, exposure: float):
+        pass
+    
+    def _get_portfolio_value(self, portfolio: Dict[str, float], date: date) -> float:
+        value = 0
+        for ticker in portfolio:
+            value += self.all_market_data.get_close_price(ticker, date) * portfolio[ticker]
+        
+        return value
+
+    def _snapshotHoldings(self, date: date) -> Holdings:
+        return Holdings(
+            cash=self.current_cash,
+            portfolio=self.current_portfolio.copy(),
+            returns=self._get_portfolio_value(self.current_portfolio, date)
+        )
     
     def backtest(self):
-        start_date = self.sim.env.start_date
-        end_date = self.sim.env.end_date
+        start_date = self.env.start_date
+        end_date = self.env.end_date
 
         current_date = start_date
 
         while current_date <= end_date:
-            if self.cash <= 0:
-                break
-            
-            if self.sim.strategy.shouldBuy(current_date, self.data_df):
-                result = self.data_df.query(f"ticker == 'GOOG' and date == '{current_date}'")
+            if not self.all_market_data.is_trading_date(current_date):
+                current_date += timedelta(days=1)
+                continue
 
-                price = result['close'].iloc[0] if not result.empty else None
+            market_data = self.all_market_data.get_slice(upToDate=current_date)
 
-                if price:
-                    self.portfolio[self.stock_name] = self.cash / price
-                    self.cash = 0
-                    break
+            for ticker in self.env.tickers:
+                if self.env.strategy.shouldBuy(current_date, ticker, market_data):
+                    self._simulate_long_position(ticker, self.env.strategy.get_exposure())
             
+            self.holdings[current_date] = self._snapshotHoldings(current_date)
+
             current_date += timedelta(days=1)
-    
-    def get_return(self):
-        cash = self.cash
-        for stock in self.portfolio:
-            shares = self.portfolio[stock]
-
-            result = self.data_df.query(f"ticker == 'GOOG' and date == '{self.sim.env.end_date}'")
-            price = result['close'].iloc[0] if not result.empty else None
-
-            current_date = self.sim.env.end_date
-            while not price:
-                current_date -= timedelta(days=1)
-                result = self.data_df.query(f"ticker == 'GOOG' and date == '{current_date}'")
-                price = result['close'].iloc[0] if not result.empty else None
-    
-            cash += price * shares
-        
-        return ((cash - self.sim.env.cash) / self.sim.env.cash) * 100
 
 data_df = pd.read_csv('data.csv')
 
-env = Environment(tickers=["GOOG"], start_date=date(2025, 3, 8), end_date=date(2025, 4, 16), cash=1000)
-sim = Simulation(env=env, strategy=SMABuyStrategy())
-
-tester = BackTester(data_df=data_df, sim=sim)
+env = Environment(tickers=["GOOG"], start_date=date(2025, 3, 8), end_date=date(2025, 4, 16), cash=1000, strategy=SMABuyStrategy())
+tester = BackTester(data_df=data_df, env=env)
 tester.backtest()
-print(tester.get_return())
 
 
+print(tester.holdings)
