@@ -20,7 +20,7 @@ class BuyStrategy(ABC):
 
 class SMABuyStrategy(BuyStrategy):
     def shouldBuy(self, date: date, ticker: str, market_data: "MarketData") -> bool:
-        return False
+        return True
     
     def get_exposure(self) -> float:
         return 0.1
@@ -89,8 +89,20 @@ class BackTester:
         self.current_cash = env.cash
         self.current_portfolio: Dict[str, float] = {}
 
-    def _simulate_long_position(self, ticker: str, exposure: float):
-        pass
+    def _simulate_long_position(self, ticker: str, exposure: float, date: date):
+        # TODO: direction swap
+
+        available_cash_to_buy = self.current_cash * exposure
+
+        # Need at least 1 cent to trade
+        if self.current_cash - available_cash_to_buy <= 0.01:
+            return
+        
+        if ticker not in self.current_portfolio:
+            self.current_portfolio[ticker] = 0
+
+        self.current_cash -= available_cash_to_buy
+        self.current_portfolio[ticker] += available_cash_to_buy / self.all_market_data.get_close_price(ticker, date)
     
     def _get_portfolio_value(self, portfolio: Dict[str, float], date: date) -> float:
         value = 0
@@ -100,10 +112,11 @@ class BackTester:
         return value
 
     def _snapshotHoldings(self, date: date) -> Holdings:
+        returns = (self.current_cash + self._get_portfolio_value(self.current_portfolio, date) - self.env.cash) / self.env.cash
         return Holdings(
             cash=self.current_cash,
             portfolio=self.current_portfolio.copy(),
-            returns=self._get_portfolio_value(self.current_portfolio, date)
+            returns=returns
         )
     
     def backtest(self):
@@ -121,7 +134,7 @@ class BackTester:
 
             for ticker in self.env.tickers:
                 if self.env.strategy.shouldBuy(current_date, ticker, market_data):
-                    self._simulate_long_position(ticker, self.env.strategy.get_exposure())
+                    self._simulate_long_position(ticker, self.env.strategy.get_exposure(), current_date)
             
             self.holdings[current_date] = self._snapshotHoldings(current_date)
 
@@ -129,9 +142,10 @@ class BackTester:
 
 data_df = pd.read_csv('data.csv')
 
-env = Environment(tickers=["GOOG"], start_date=date(2025, 3, 8), end_date=date(2025, 4, 16), cash=1000, strategy=SMABuyStrategy())
+env = Environment(tickers=["JPM"], start_date=date(2022, 3, 8), end_date=date(2025, 4, 16), cash=1000, strategy=SMABuyStrategy())
 tester = BackTester(data_df=data_df, env=env)
 tester.backtest()
 
 
-print(tester.holdings)
+for d in tester.holdings:
+    print(f"{d} {tester.holdings[d]}")
