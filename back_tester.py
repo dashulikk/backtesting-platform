@@ -31,7 +31,7 @@ class BackTester:
         self.current_cash = env.cash
         self.current_portfolio: Dict[str, Set[Position]] = {}
 
-    def _simulate_long_position(self, ticker: str, exposure: float, date: date):
+    def _simulate_long_position(self, ticker: str, exposure: float, date: date, liquidate_below: Optional[float], liquidate_above: Optional[float]):
         available_cash_to_buy = self.current_cash * exposure
 
         # Need at least 1 cent to trade
@@ -45,16 +45,20 @@ class BackTester:
 
         price = self.all_market_data.get_close_price(ticker, date)
         amount = available_cash_to_buy / price
+
+        liquidate_above_price = None if not liquidate_above else price * liquidate_above
+        liquidate_below_price = None if not liquidate_below else price * liquidate_below
+
         self.current_portfolio[ticker].add(Position(
             ticker=ticker,
             amount=amount,
             entered_price=price,
-            # liquidate_above=price*1.05,
-            # liquidate_below=price*0.95
+            liquidate_above=liquidate_above_price,
+            liquidate_below=liquidate_below_price
             )
         )
     
-    def _simulate_short_position(self, ticker: str, exposure: float, date: date):
+    def _simulate_short_position(self, ticker: str, exposure: float, date: date, liquidate_below: Optional[float], liquidate_above: Optional[float]):
         available_cash_to_short = self.current_cash * exposure
 
         # Need at least 1 cent to trade
@@ -68,12 +72,16 @@ class BackTester:
 
         price = self.all_market_data.get_close_price(ticker, date)
         amount = - (available_cash_to_short / price)
+
+        liquidate_above_price = None if not liquidate_above else price * liquidate_above
+        liquidate_below_price = None if not liquidate_below else price * liquidate_below
+
         self.current_portfolio[ticker].add(Position(
             ticker=ticker,
             amount=amount,
             entered_price=price,
-            # liquidate_above=price*1.05,
-            # liquidate_below=price*0.95
+            liquidate_above=liquidate_above_price,
+            liquidate_below=liquidate_below_price
             )
         )
     
@@ -107,6 +115,11 @@ class BackTester:
         compressed_portfolio = {
             ticker: sum(position.amount for position in self.current_portfolio[ticker]) for ticker in self.current_portfolio
         }
+
+        compressed_portfolio = {
+            ticker: compressed_portfolio[ticker] for ticker in compressed_portfolio if compressed_portfolio[ticker] != 0
+        }
+
         return Holdings(
             cash=self.current_cash,
             portfolio=compressed_portfolio,
@@ -132,9 +145,9 @@ class BackTester:
 
                 if self.env.strategy.should_enter(current_date, ticker, self.all_market_data):
                     if self.env.strategy.strategy_type() == StrategyType.LONG:
-                        self._simulate_long_position(ticker, self.env.strategy.get_exposure(), current_date)
+                        self._simulate_long_position(ticker, exposure=self.env.strategy.get_exposure(), liquidate_above=self.env.strategy.liquidate_above(), liquidate_below=self.env.strategy.liquidate_below(), date=current_date)
                     else:
-                        self._simulate_short_position(ticker, self.env.strategy.get_exposure(), current_date)
+                        self._simulate_short_position(ticker, exposure=self.env.strategy.get_exposure(),liquidate_above=self.env.strategy.liquidate_above(), liquidate_below=self.env.strategy.liquidate_below(), date=current_date)
             
             self.holdings[current_date] = self._snapshotHoldings(current_date)
 

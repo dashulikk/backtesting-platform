@@ -3,6 +3,8 @@ from datetime import date
 from market_data import MarketData
 from enum import Enum
 
+from typing import Optional
+
 class StrategyType(Enum):
     LONG = 1
     SHORT = 2
@@ -24,3 +26,9 @@ class Strategy(ABC):
     @abstractmethod
     def strategy_type(self) -> StrategyType:
         pass
+
+    def liquidate_below(self) -> Optional[float]:
+        return None
+    
+    def liquidate_above(self) -> Optional[float]:
+        return None

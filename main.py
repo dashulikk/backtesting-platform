@@ -2,7 +2,7 @@ import pandas as pd
 from environment import Environment
 from back_tester import BackTester
 from datetime import date
-from strategies.sma_strategy import SMABuyStrategy
+from strategies.example_strategy import ExampleStrategy
 
 data_df = pd.read_csv('data.csv')
 
@@ -11,7 +11,7 @@ env = Environment(
     start_date=date(2024, 10, 16), 
     end_date=date(2025, 4, 16), 
     cash=1000, 
-    strategy=SMABuyStrategy(days=20, exposure=0.05)
+    strategy=ExampleStrategy(days=20, exposure=0.05, liquidate_above=1.05, liquidate_below=0.95)
 )
 
 tester = BackTester(data_df=data_df, env=env)
