@@ -4,6 +4,7 @@ from strategies.base_strategy import Strategy, StrategyType
 
 from typing import Optional
 
+
 class ExampleStrategy(Strategy):
     def __init__(self, days, exposure, liquidate_above, liquidate_below):
         self.days = days
@@ -17,15 +18,15 @@ class ExampleStrategy(Strategy):
             return True
         else:
             return False
-    
+
     def get_exposure(self) -> float:
         return self.exposure
-    
+
     def strategy_type(self) -> StrategyType:
         return StrategyType.SHORT
-    
+
     def liquidate_below(self) -> Optional[float]:
         return self.liquidate_below_price
-    
+
     def liquidate_above(self) -> Optional[float]:
         return self.liquidate_above_price

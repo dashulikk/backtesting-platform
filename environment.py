@@ -3,9 +3,10 @@ from typing import List
 from strategies.base_strategy import Strategy
 from datetime import date
 
+
 @dataclass
 class Environment:
-    tickers:  List[str]
+    tickers: List[str]
     start_date: date
     end_date: date
     cash: int

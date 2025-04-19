@@ -3,6 +3,7 @@ from datetime import date
 from typing import Optional, List, Dict
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class TickerData:
     open: float
@@ -11,15 +12,16 @@ class TickerData:
     low: float
     volume: int
 
+
 class MarketData:
     def __init__(self, all_data_df: pd.DataFrame, tickers: Optional[List[str]] = None):
         self.data: Dict[date, Dict[str, TickerData]] = {}
         self.trading_dates: List[date] = []
 
         df = all_data_df.copy()
-        df['date'] = pd.to_datetime(df['date']).dt.date
+        df["date"] = pd.to_datetime(df["date"]).dt.date
         if tickers:
-            df = df[df['ticker'].isin(tickers)]
+            df = df[df["ticker"].isin(tickers)]
 
         for row in df.itertuples(index=False):
             d = row.date
@@ -34,7 +36,7 @@ class MarketData:
                 close=row.close,
                 high=row.high,
                 low=row.low,
-                volume=row.volume
+                volume=row.volume,
             )
 
         self.trading_dates.sort()

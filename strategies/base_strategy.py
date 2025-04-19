@@ -5,6 +5,7 @@ from enum import Enum
 
 from typing import Optional
 
+
 class StrategyType(Enum):
     LONG = 1
     SHORT = 2
@@ -29,6 +30,6 @@ class Strategy(ABC):
 
     def liquidate_below(self) -> Optional[float]:
         return None
-    
+
     def liquidate_above(self) -> Optional[float]:
         return None
