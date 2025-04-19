@@ -10,4 +10,4 @@ class Environment:
     start_date: date
     end_date: date
     cash: int
-    strategy: Strategy
+    strategies: List[Strategy]

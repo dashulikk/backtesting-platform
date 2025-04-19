@@ -11,9 +11,10 @@ env = Environment(
     start_date=date(2024, 10, 16),
     end_date=date(2025, 4, 16),
     cash=1000,
-    strategy=ExampleStrategy(
+    strategies=
+    [ExampleStrategy(
         days=20, exposure=0.05, liquidate_above=1.05, liquidate_below=0.95
-    ),
+    )],
 )
 
 tester = BackTester(data_df=data_df, env=env)

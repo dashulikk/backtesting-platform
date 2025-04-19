@@ -163,33 +163,34 @@ class BackTester:
                 current_date += timedelta(days=1)
                 continue
 
-            for ticker in self.env.tickers:
-                if ticker in self.current_portfolio:
-                    for position in list(self.current_portfolio[ticker]):
-                        if self._shouldLiquidatePosition(
-                            position=position, date=current_date
-                        ):
-                            self._liquidatePosition(position, current_date)
+            for strategy in self.env.strategies:
+                for ticker in self.env.tickers:
+                    if ticker in self.current_portfolio:
+                        for position in list(self.current_portfolio[ticker]):
+                            if self._shouldLiquidatePosition(
+                                position=position, date=current_date
+                            ):
+                                self._liquidatePosition(position, current_date)
 
-                if self.env.strategy.should_enter(
-                    current_date, ticker, self.all_market_data
-                ):
-                    if self.env.strategy.strategy_type() == StrategyType.LONG:
-                        self._simulate_long_position(
-                            ticker,
-                            exposure=self.env.strategy.get_exposure(),
-                            liquidate_above=self.env.strategy.liquidate_above(),
-                            liquidate_below=self.env.strategy.liquidate_below(),
-                            date=current_date,
-                        )
-                    else:
-                        self._simulate_short_position(
-                            ticker,
-                            exposure=self.env.strategy.get_exposure(),
-                            liquidate_above=self.env.strategy.liquidate_above(),
-                            liquidate_below=self.env.strategy.liquidate_below(),
-                            date=current_date,
-                        )
+                    if strategy.should_enter(
+                        current_date, ticker, self.all_market_data
+                    ):
+                        if strategy.strategy_type() == StrategyType.LONG:
+                            self._simulate_long_position(
+                                ticker,
+                                exposure=strategy.get_exposure(),
+                                liquidate_above=strategy.liquidate_above(),
+                                liquidate_below=strategy.liquidate_below(),
+                                date=current_date,
+                            )
+                        else:
+                            self._simulate_short_position(
+                                ticker,
+                                exposure=strategy.get_exposure(),
+                                liquidate_above=strategy.liquidate_above(),
+                                liquidate_below=strategy.liquidate_below(),
+                                date=current_date,
+                            )
 
             self.holdings[current_date] = self._snapshotHoldings(current_date)
 
