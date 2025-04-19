@@ -1,10 +1,16 @@
 from abc import ABC, abstractmethod
 from datetime import date
 from market_data import MarketData
+from enum import Enum
 
-class BuyStrategy(ABC):
+class StrategyType(Enum):
+    LONG = 1
+    SHORT = 2
+
+
+class Strategy(ABC):
     @abstractmethod
-    def shouldBuy(self, date: date, ticker: str, market_data: MarketData) -> bool:
+    def should_enter(self, date: date, ticker: str, market_data: MarketData) -> bool:
         pass
 
     @abstractmethod
@@ -13,4 +19,8 @@ class BuyStrategy(ABC):
         When receiving a buy signal - buy stock worth some percentage of cash that we have.
         For example, when receiving a buy signal for AAPL, buy AAPL using 10% of cash we have.
         """
+        pass
+
+    @abstractmethod
+    def strategy_type(self) -> StrategyType:
         pass

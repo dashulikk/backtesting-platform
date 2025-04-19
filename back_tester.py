@@ -5,14 +5,15 @@ from market_data import MarketData
 from datetime import date, timedelta
 import pandas as pd
 from typing import Optional, Set
+from strategies.base_strategy import StrategyType
 
 @dataclass(frozen=True)
 class Position:
     ticker: str
     amount: float
     entered_price: float
-    sell_below: Optional[float] = None
-    sell_above: Optional[float] = None
+    liquidate_below: Optional[float] = None
+    liquidate_above: Optional[float] = None
 
 @dataclass
 class Holdings:
@@ -31,8 +32,6 @@ class BackTester:
         self.current_portfolio: Dict[str, Set[Position]] = {}
 
     def _simulate_long_position(self, ticker: str, exposure: float, date: date):
-        # TODO: direction swap
-
         available_cash_to_buy = self.current_cash * exposure
 
         # Need at least 1 cent to trade
@@ -50,18 +49,41 @@ class BackTester:
             ticker=ticker,
             amount=amount,
             entered_price=price,
-            # sell_above=price*1.05,
-            # sell_below=price*0.95
+            # liquidate_above=price*1.05,
+            # liquidate_below=price*0.95
+            )
+        )
+    
+    def _simulate_short_position(self, ticker: str, exposure: float, date: date):
+        available_cash_to_short = self.current_cash * exposure
+
+        # Need at least 1 cent to trade
+        if available_cash_to_short <= 0.01:
+            return
+        
+        if ticker not in self.current_portfolio:
+            self.current_portfolio[ticker] = set()
+
+        self.current_cash += available_cash_to_short
+
+        price = self.all_market_data.get_close_price(ticker, date)
+        amount = - (available_cash_to_short / price)
+        self.current_portfolio[ticker].add(Position(
+            ticker=ticker,
+            amount=amount,
+            entered_price=price,
+            # liquidate_above=price*1.05,
+            # liquidate_below=price*0.95
             )
         )
     
     def _shouldLiquidatePosition(self, position: Position, date: date):
         price = self.all_market_data.get_close_price(position.ticker, date)
 
-        if position.sell_below and price < position.sell_below:
+        if position.liquidate_below and price < position.liquidate_below:
             return True
         
-        if position.sell_above and price > position.sell_above:
+        if position.liquidate_above and price > position.liquidate_above:
             return True
 
         return False
@@ -108,8 +130,11 @@ class BackTester:
                         if self._shouldLiquidatePosition(position=position, date=current_date):
                             self._liquidatePosition(position, current_date)
 
-                if self.env.strategy.shouldBuy(current_date, ticker, self.all_market_data):
-                    self._simulate_long_position(ticker, self.env.strategy.get_exposure(), current_date)
+                if self.env.strategy.should_enter(current_date, ticker, self.all_market_data):
+                    if self.env.strategy.strategy_type() == StrategyType.LONG:
+                        self._simulate_long_position(ticker, self.env.strategy.get_exposure(), current_date)
+                    else:
+                        self._simulate_short_position(ticker, self.env.strategy.get_exposure(), current_date)
             
             self.holdings[current_date] = self._snapshotHoldings(current_date)
 
