@@ -352,3 +352,82 @@ async def run_backtest(
         raise HTTPException(status_code=404, detail="Simulation not found")
     
     return Response(status_code=status.HTTP_200_OK)
+
+# Request models for creating new items
+class CreateEnvironmentRequest(BaseModel):
+    name: str
+    stocks: List[str]
+
+class CreateSimulationRequest(BaseModel):
+    name: str
+    start_date: date
+    end_date: date
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2]]
+
+@app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
+async def create_environment(
+    request: CreateEnvironmentRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new environment for the current user."""
+    user_id = current_user.username
+    
+    # Initialize user's environments if not exists
+    if user_id not in environments:
+        environments[user_id] = {}
+    
+    # Check if environment with this name already exists
+    if request.name in environments[user_id]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Environment with this name already exists"
+        )
+    
+    # Create new environment
+    new_env = Environment(
+        name=request.name,
+        stocks=request.stocks,
+        simulations=[]
+    )
+    
+    # Save it
+    environments[user_id][request.name] = new_env
+    
+    return Response(status_code=status.HTTP_200_OK)
+
+@app.post("/{env_name}/simulations", status_code=status.HTTP_200_OK, response_class=Response)
+async def create_simulation(
+    env_name: str,
+    request: CreateSimulationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new simulation in the specified environment."""
+    user_id = current_user.username
+    
+    # Check if user and environment exist
+    if user_id not in environments:
+        raise HTTPException(status_code=404, detail="No environments found")
+    
+    if env_name not in environments[user_id]:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    # Check if simulation with this name already exists
+    env = environments[user_id][env_name]
+    if any(sim.name == request.name for sim in env.simulations):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Simulation with this name already exists in this environment"
+        )
+    
+    # Create new simulation
+    new_simulation = Simulation(
+        name=request.name,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        strategies=request.strategies
+    )
+    
+    # Add to environment
+    env.simulations.append(new_simulation)
+    
+    return Response(status_code=status.HTTP_200_OK)
