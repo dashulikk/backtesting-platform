@@ -199,8 +199,8 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
         <Grid>
           {environments.map((environment) => (
             <Grid.Col key={environment.name} span={4}>
-              <Card withBorder p="md">
-                <Group position="apart">
+              <Card withBorder p="md" style={{ height: '200px', display: 'flex', flexDirection: 'column' }}>
+                <Group position="apart" mb="xs">
                   <Group>
                     <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                       <IconChartLine size={16} />
@@ -210,34 +210,31 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
                       <Text size="xs" color="dimmed">{environment.stocks.join(', ')}</Text>
                     </div>
                   </Group>
-                  <Group spacing="xs">
-                    <ThemeIcon 
-                      size="lg" 
-                      color="blue" 
-                      variant="light"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => openEditModal(environment)}
-                    >
-                      <IconPencil size={20} />
-                    </ThemeIcon>
-                    <ThemeIcon 
-                      size="lg" 
-                      color="red" 
-                      variant="light"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setEnvironmentToDelete(environment);
-                        setDeleteModalOpened(true);
-                      }}
-                    >
-                      <IconTrash size={20} />
-                    </ThemeIcon>
-                  </Group>
+                </Group>
+
+                <Group mb="xs">
+                  <ActionIcon
+                    variant="light"
+                    color="blue"
+                    onClick={() => openEditModal(environment)}
+                  >
+                    <IconPencil size={16} />
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="light"
+                    color="red"
+                    onClick={() => {
+                      setEnvironmentToDelete(environment);
+                      setDeleteModalOpened(true);
+                    }}
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
                 </Group>
                 
-                <Divider my="sm" />
+                <Divider mb="xs" />
                 
-                <Stack spacing="xs">
+                <Stack spacing="xs" style={{ flex: 1 }}>
                   <Group position="apart">
                     <Text size="sm" weight={500}>Date Range:</Text>
                     <Text size="sm">{environment.start_date} to {environment.end_date}</Text>

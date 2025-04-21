@@ -26,7 +26,9 @@ import {
   IconChartBar,
   IconChartCandle,
   IconArrowLeft,
-  IconArrowBack
+  IconArrowBack,
+  IconPlayerPlay,
+  IconPlayerStop
 } from '@tabler/icons-react';
 import StrategyModal from './StrategyModal';
 
@@ -39,6 +41,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [strategyToDelete, setStrategyToDelete] = useState(null);
   const [editingStrategy, setEditingStrategy] = useState(null);
+  const [runningBacktests, setRunningBacktests] = useState(new Set());
 
   useEffect(() => {
     fetchEnvironments();
@@ -170,6 +173,37 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       setStrategyToDelete(null);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleRunBacktest = async (envName) => {
+    try {
+      setRunningBacktests(prev => new Set([...prev, envName]));
+      
+      const response = await fetch(`http://localhost:8000/${encodeURIComponent(envName)}/backtest`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('Backtest response:', errorData);
+        throw new Error(errorData?.detail || 'Failed to run backtest');
+      }
+
+      // Show success message
+      console.log('Backtest started successfully');
+    } catch (err) {
+      console.error('Error running backtest:', err);
+      setError(err.message);
+    } finally {
+      setRunningBacktests(prev => {
+        const next = new Set(prev);
+        next.delete(envName);
+        return next;
+      });
     }
   };
 
@@ -308,8 +342,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                     fullWidth
                     onClick={(e) => {
                       e.stopPropagation();
-                      // TODO: Implement backtest functionality
-                      console.log('Running backtest for', env.name);
+                      handleRunBacktest(env.name);
                     }}
                   >
                     Run Backtest
