@@ -1,232 +1,166 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
-  Title,
+  TextInput,
   Select,
   NumberInput,
   Button,
   Stack,
   Group,
   Text,
-  Divider,
-  Paper
+  Divider
 } from '@mantine/core';
 
-const strategyTypes = [
-  { value: 'SMA', label: 'Simple Moving Average (SMA)' },
-  { value: 'RSI', label: 'Relative Strength Index (RSI)' },
-  { value: 'DIVIDENDS', label: 'Dividends Strategy' }
-];
+const StrategyModal = ({ opened, onClose, onSubmit, environment, strategy }) => {
+  const [name, setName] = useState('');
+  const [type, setType] = useState('');
+  const [parameters, setParameters] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-const StrategyModal = ({ opened, onClose, onAddStrategy }) => {
-  const [selectedStrategy, setSelectedStrategy] = useState('');
-  const [strategyParams, setStrategyParams] = useState({});
-  
-  // Default parameters for each strategy type
-  const defaultParams = {
-    SMA: {
-      period: 20,
-      exposure: 0.5,
-      type: 'LONG'
-    },
-    RSI: {
-      period: 14,
-      overbought: 70,
-      oversold: 30,
-      exposure: 0.5,
-      type: 'LONG'
-    },
-    DIVIDENDS: {
-      minDividendYield: 3,
-      maxPayoutRatio: 75,
-      exposure: 0.5,
-      type: 'LONG'
+  // Reset form when modal opens/closes or strategy changes
+  useEffect(() => {
+    if (opened) {
+      if (strategy) {
+        // Editing mode
+        setName(strategy.name);
+        setType(strategy.type);
+        setParameters(strategy.parameters || {});
+      } else {
+        // Adding mode
+        setName('');
+        setType('');
+        setParameters({});
+      }
+    }
+  }, [opened, strategy]);
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Validate required fields based on strategy type
+      if (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) {
+        throw new Error('Days and N are required for ExampleStrategy');
+      }
+      if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
+        throw new Error('Parameters A and B are required for ExampleStrategy2');
+      }
+
+      const strategyData = {
+        name,
+        type,
+        parameters: type === 'ExampleStrategy' 
+          ? { days: parameters.days, n: parameters.n }
+          : { a: parameters.a, b: parameters.b }
+      };
+
+      await onSubmit(strategyData);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleStrategyChange = (value) => {
-    setSelectedStrategy(value);
-    setStrategyParams(defaultParams[value] || {});
-  };
-
-  const handleParamChange = (param, value) => {
-    setStrategyParams({
-      ...strategyParams,
-      [param]: value
-    });
-  };
-
-  const handleSubmit = () => {
-    if (!selectedStrategy) return;
-    
-    onAddStrategy({
-      name: strategyTypes.find(s => s.value === selectedStrategy).label,
-      type: strategyParams.type,
-      exposure: strategyParams.exposure,
-      parameters: { ...strategyParams }
-    });
-    
-    onClose();
-  };
-
-  const renderStrategyParams = () => {
-    if (!selectedStrategy) return null;
-    
-    switch (selectedStrategy) {
-      case 'SMA':
+  const renderParameterInputs = () => {
+    switch (type) {
+      case 'ExampleStrategy':
         return (
           <Stack spacing="md">
             <NumberInput
-              label="Period"
-              description="Number of days for the moving average"
-              value={strategyParams.period}
-              onChange={(value) => handleParamChange('period', value)}
+              label="Days"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
               min={1}
-              max={200}
+              required
             />
             <NumberInput
-              label="Exposure"
-              description="Portfolio exposure (0-1)"
-              value={strategyParams.exposure}
-              onChange={(value) => handleParamChange('exposure', value)}
-              min={0.01}
-              max={1}
-              step={0.01}
-              precision={2}
-            />
-            <Select
-              label="Strategy Type"
-              value={strategyParams.type}
-              onChange={(value) => handleParamChange('type', value)}
-              data={[
-                { value: 'LONG', label: 'Long' },
-                { value: 'SHORT', label: 'Short' }
-              ]}
-            />
-          </Stack>
-        );
-        
-      case 'RSI':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Period"
-              description="Number of days for RSI calculation"
-              value={strategyParams.period}
-              onChange={(value) => handleParamChange('period', value)}
+              label="N"
+              value={parameters.n || 0}
+              onChange={(value) => setParameters({ ...parameters, n: value })}
               min={1}
-              max={100}
-            />
-            <NumberInput
-              label="Overbought Level"
-              description="RSI level considered overbought"
-              value={strategyParams.overbought}
-              onChange={(value) => handleParamChange('overbought', value)}
-              min={50}
-              max={100}
-            />
-            <NumberInput
-              label="Oversold Level"
-              description="RSI level considered oversold"
-              value={strategyParams.oversold}
-              onChange={(value) => handleParamChange('oversold', value)}
-              min={0}
-              max={50}
-            />
-            <NumberInput
-              label="Exposure"
-              description="Portfolio exposure (0-1)"
-              value={strategyParams.exposure}
-              onChange={(value) => handleParamChange('exposure', value)}
-              min={0.01}
-              max={1}
-              step={0.01}
-              precision={2}
-            />
-            <Select
-              label="Strategy Type"
-              value={strategyParams.type}
-              onChange={(value) => handleParamChange('type', value)}
-              data={[
-                { value: 'LONG', label: 'Long' },
-                { value: 'SHORT', label: 'Short' }
-              ]}
+              required
             />
           </Stack>
         );
-        
-      case 'DIVIDENDS':
+      case 'ExampleStrategy2':
         return (
           <Stack spacing="md">
             <NumberInput
-              label="Minimum Dividend Yield (%)"
-              description="Minimum dividend yield to consider"
-              value={strategyParams.minDividendYield}
-              onChange={(value) => handleParamChange('minDividendYield', value)}
-              min={0.1}
-              max={20}
-              step={0.1}
-              precision={1}
+              label="Parameter A"
+              value={parameters.a || 0}
+              onChange={(value) => setParameters({ ...parameters, a: value })}
+              required
             />
             <NumberInput
-              label="Exposure"
-              description="Portfolio exposure (0-1)"
-              value={strategyParams.exposure}
-              onChange={(value) => handleParamChange('exposure', value)}
-              min={0.01}
-              max={1}
-              step={0.01}
-              precision={2}
-            />
-            <Select
-              label="Strategy Type"
-              value={strategyParams.type}
-              onChange={(value) => handleParamChange('type', value)}
-              data={[
-                { value: 'LONG', label: 'Long' },
-                { value: 'SHORT', label: 'Short' }
-              ]}
+              label="Parameter B"
+              value={parameters.b || 0}
+              onChange={(value) => setParameters({ ...parameters, b: value })}
+              required
             />
           </Stack>
         );
-        
       default:
         return null;
     }
   };
 
   return (
-    <Modal 
-      opened={opened} 
-      onClose={onClose} 
-      title="Add Strategy" 
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={strategy ? "Edit Strategy" : "Add Strategy"}
       size="md"
     >
       <Stack spacing="md">
+        <TextInput
+          label="Strategy Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          disabled={!!strategy} // Name cannot be changed when editing
+        />
+
         <Select
           label="Strategy Type"
-          placeholder="Select a strategy"
-          data={strategyTypes}
-          value={selectedStrategy}
-          onChange={handleStrategyChange}
-          searchable
+          value={type}
+          onChange={setType}
+          data={[
+            { value: 'ExampleStrategy', label: 'Example Strategy' },
+            { value: 'ExampleStrategy2', label: 'Example Strategy 2' }
+          ]}
+          required
+          disabled={!!strategy} // Type cannot be changed when editing
         />
-        
-        {selectedStrategy && (
+
+        {type && (
           <>
-            <Divider my="sm" />
-            <Title order={4}>Strategy Parameters</Title>
-            {renderStrategyParams()}
+            <Divider />
+            <Text weight={500}>Parameters</Text>
+            {renderParameterInputs()}
           </>
         )}
-        
-        <Group position="right" mt="xl">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+
+        {error && (
+          <Text color="red" size="sm">
+            {error}
+          </Text>
+        )}
+
+        <Group position="right" mt="md">
+          <Button variant="light" onClick={onClose}>
+            Cancel
+          </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={!selectedStrategy}
+            loading={loading}
+            disabled={!name || !type || (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
+                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b))}
           >
-            Add Strategy
+            {strategy ? "Save Changes" : "Add Strategy"}
           </Button>
         </Group>
       </Stack>

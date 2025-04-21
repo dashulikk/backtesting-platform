@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Title,
@@ -6,120 +6,191 @@ import {
   Button,
   Group,
   Stack,
-  Paper,
-  Grid,
   Card,
   ThemeIcon,
   ActionIcon,
   Menu,
-  Badge,
   Modal,
+  Badge,
+  Divider,
+  Paper,
+  Grid,
+  Loader,
+  Center,
   TextInput,
-  Checkbox,
-  ScrollArea,
-  Table,
-  Divider
+  MultiSelect,
+  NumberInput
 } from '@mantine/core';
-import {
-  IconArrowLeft,
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconFolder,
-  IconPlus,
-  IconSearch
+import { 
+  IconPlus, 
+  IconTrash, 
+  IconPencil, 
+  IconChartLine,
+  IconArrowLeft
 } from '@tabler/icons-react';
 
-function EnvironmentsPage({ onBack, environments, setEnvironments, onCreateNew }) {
-  const [editingEnvironment, setEditingEnvironment] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStocks, setSelectedStocks] = useState([]);
+const EnvironmentsPage = ({ onBack, onNavigate }) => {
+  const [environments, setEnvironments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [environmentToDelete, setEnvironmentToDelete] = useState(null);
+  const [editingEnv, setEditingEnv] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editStocks, setEditStocks] = useState([]);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [availableStocks, setAvailableStocks] = useState([
+    'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT'
+  ]);
 
-  // Mock SP500 stocks data - this should be replaced with actual data
-  const sp500Stocks = [
-    // Technology
-    { ticker: 'AAPL', name: 'Apple Inc.', sector: 'Technology' },
-    { ticker: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology' },
-    { ticker: 'AMZN', name: 'Amazon.com Inc.', sector: 'Technology' },
-    { ticker: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology' },
-    { ticker: 'META', name: 'Meta Platforms Inc.', sector: 'Technology' },
-    { ticker: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology' },
-    { ticker: 'TSLA', name: 'Tesla Inc.', sector: 'Technology' },
-    { ticker: 'ADBE', name: 'Adobe Inc.', sector: 'Technology' },
-    { ticker: 'CRM', name: 'Salesforce Inc.', sector: 'Technology' },
-    { ticker: 'INTC', name: 'Intel Corporation', sector: 'Technology' },
+  useEffect(() => {
+    fetchEnvironments();
+  }, []);
 
-    // Healthcare
-    { ticker: 'JNJ', name: 'Johnson & Johnson', sector: 'Healthcare' },
-    { ticker: 'PFE', name: 'Pfizer Inc.', sector: 'Healthcare' },
-    { ticker: 'ABBV', name: 'AbbVie Inc.', sector: 'Healthcare' },
-    { ticker: 'MRK', name: 'Merck & Co.', sector: 'Healthcare' },
-    { ticker: 'ABT', name: 'Abbott Laboratories', sector: 'Healthcare' },
-
-    // Financials
-    { ticker: 'BRK.B', name: 'Berkshire Hathaway Inc.', sector: 'Financials' },
-    { ticker: 'JPM', name: 'JPMorgan Chase & Co.', sector: 'Financials' },
-    { ticker: 'BAC', name: 'Bank of America Corp.', sector: 'Financials' },
-    { ticker: 'WFC', name: 'Wells Fargo & Company', sector: 'Financials' },
-    { ticker: 'GS', name: 'Goldman Sachs Group Inc.', sector: 'Financials' },
-
-    // Consumer Discretionary
-    { ticker: 'WMT', name: 'Walmart Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'HD', name: 'Home Depot Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'MCD', name: 'McDonald\'s Corporation', sector: 'Consumer Discretionary' },
-    { ticker: 'NKE', name: 'Nike Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'SBUX', name: 'Starbucks Corporation', sector: 'Consumer Discretionary' }
-  ];
-
-  const handleEditEnvironment = (environment) => {
-    setEditingEnvironment(environment);
-    setSelectedStocks(environment.stocks);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteEnvironment = (environmentId) => {
-    setEnvironments(environments.filter(env => env.id !== environmentId));
-  };
-
-  const handleSaveEdit = () => {
-    if (editingEnvironment) {
-      setEnvironments(environments.map(env => 
-        env.id === editingEnvironment.id 
-          ? { ...editingEnvironment, stocks: selectedStocks }
-          : env
-      ));
-      setShowEditModal(false);
-      setEditingEnvironment(null);
-      setSelectedStocks([]);
-    }
-  };
-
-  const handleStockSelect = (ticker) => {
-    if (selectedStocks.includes(ticker)) {
-      setSelectedStocks(selectedStocks.filter(t => t !== ticker));
-    } else {
-      if (selectedStocks.length < 10) {
-        setSelectedStocks([...selectedStocks, ticker]);
+  const fetchEnvironments = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8000/envs', {
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch environments');
       }
+      
+      const data = await response.json();
+      setEnvironments(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const sectors = [...new Set(sp500Stocks.map(stock => stock.sector))];
+  const handleEditEnvironment = async () => {
+    if (!editingEnv) return;
+    
+    try {
+      // First delete the old environment
+      const deleteUrl = `http://localhost:8000/environments/${encodeURIComponent(editingEnv.name)}`;
+      console.log('Deleting environment at URL:', deleteUrl);
+      
+      const deleteResponse = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!deleteResponse.ok) {
+        const errorData = await deleteResponse.json().catch(() => null);
+        console.error('Delete response:', errorData);
+        throw new Error(errorData?.detail || `Failed to delete environment: ${deleteResponse.status} ${deleteResponse.statusText}`);
+      }
+
+      // Then create a new environment with updated values
+      const createData = {
+        name: editName,
+        stocks: editStocks,
+        start_date: editStartDate,
+        end_date: editEndDate
+      };
+      console.log('Creating new environment with data:', createData);
+      
+      const createResponse = await fetch('http://localhost:8000/environments', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createData),
+      });
+      
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => null);
+        console.error('Create response:', errorData);
+        throw new Error(errorData?.detail || `Failed to create environment: ${createResponse.status} ${createResponse.statusText}`);
+      }
+      
+      // Refresh environments to get the updated data
+      await fetchEnvironments();
+      setEditingEnv(null);
+    } catch (err) {
+      console.error('Error updating environment:', err);
+      setError(err.message);
+    }
+  };
+
+  const handleDeleteEnvironment = async () => {
+    if (!environmentToDelete) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/environments/${environmentToDelete.name}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete environment');
+      }
+      
+      // Refresh environments to get the updated data
+      fetchEnvironments();
+      setDeleteModalOpened(false);
+      setEnvironmentToDelete(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const openEditModal = (env) => {
+    setEditingEnv(env);
+    setEditName(env.name);
+    setEditStocks(env.stocks);
+    setEditStartDate(env.start_date);
+    setEditEndDate(env.end_date);
+  };
+
+  if (loading) {
+    return (
+      <Center style={{ height: '100%' }}>
+        <Loader size="xl" />
+      </Center>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container size="md" py="xl">
+        <Paper p="xl" withBorder>
+          <Stack align="center" spacing="md">
+            <Title order={2} color="red">Error</Title>
+            <Text>{error}</Text>
+            <Button onClick={fetchEnvironments}>Retry</Button>
+          </Stack>
+        </Paper>
+      </Container>
+    );
+  }
 
   return (
-    <Container size="xl" py="xl">
+    <Container size="xl" py="xl" style={{ overflowY: 'auto', height: '100%' }}>
       <Stack spacing="xl">
         <Group position="apart">
           <Group>
             <ActionIcon onClick={onBack} size="lg" variant="subtle">
               <IconArrowLeft size={20} />
             </ActionIcon>
-            <Title order={2}>Your Environments</Title>
+            <Title order={2}>Environments</Title>
           </Group>
-          <Button
-            leftIcon={<IconPlus size={16} />}
-            onClick={onCreateNew}
+          <Button 
+            leftSection={<IconPlus size={16} />}
+            onClick={() => onNavigate('create-environment')}
           >
             New Environment
           </Button>
@@ -127,128 +198,139 @@ function EnvironmentsPage({ onBack, environments, setEnvironments, onCreateNew }
 
         <Grid>
           {environments.map((environment) => (
-            <Grid.Col key={environment.id} span={4}>
-              <Card shadow="sm" padding="lg" withBorder>
-                <Card.Section>
-                  <Group position="apart" p="md">
-                    <Menu position="bottom-end">
-                      <Menu.Target>
-                        <ActionIcon>
-                          <IconDots size={16} />
-                        </ActionIcon>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        <Menu.Item 
-                          icon={<IconPencil size={14} />}
-                          onClick={() => handleEditEnvironment(environment)}
-                        >
-                          Edit
-                        </Menu.Item>
-                        <Menu.Item 
-                          color="red" 
-                          icon={<IconTrash size={14} />}
-                          onClick={() => handleDeleteEnvironment(environment.id)}
-                        >
-                          Delete
-                        </Menu.Item>
-                      </Menu.Dropdown>
-                    </Menu>
+            <Grid.Col key={environment.name} span={4}>
+              <Card withBorder p="md" style={{ height: '200px', display: 'flex', flexDirection: 'column' }}>
+                <Group position="apart" mb="xs">
+                  <Group>
+                    <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                      <IconChartLine size={16} />
+                    </ThemeIcon>
+                    <div>
+                      <Text weight={500}>{environment.name}</Text>
+                      <Text size="xs" color="dimmed">{environment.stocks.join(', ')}</Text>
+                    </div>
                   </Group>
-                </Card.Section>
+                </Group>
 
-                <Stack spacing="xs">
-                  <Text size="lg" weight={500}>
-                    {environment.name}
-                  </Text>
-                  <Text size="sm" color="dimmed">
-                    {environment.stocks.length} stocks selected
-                  </Text>
-                  <Text size="sm" color="dimmed">
-                    Created: {environment.date}
-                  </Text>
-                  <Badge variant="light" color="blue">
-                    {environment.stocks.join(', ')}
-                  </Badge>
+                <Group mb="xs">
+                  <ActionIcon
+                    variant="light"
+                    color="blue"
+                    onClick={() => openEditModal(environment)}
+                  >
+                    <IconPencil size={16} />
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="light"
+                    color="red"
+                    onClick={() => {
+                      setEnvironmentToDelete(environment);
+                      setDeleteModalOpened(true);
+                    }}
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Group>
+                
+                <Divider mb="xs" />
+                
+                <Stack spacing="xs" style={{ flex: 1 }}>
+                  <Group position="apart">
+                    <Text size="sm" weight={500}>Date Range:</Text>
+                    <Text size="sm">{environment.start_date} to {environment.end_date}</Text>
+                  </Group>
+                  <Group position="apart">
+                    <Text size="sm" weight={500}>Strategies:</Text>
+                    <Badge>{environment.strategies.length}</Badge>
+                  </Group>
                 </Stack>
               </Card>
             </Grid.Col>
           ))}
+          {environments.length === 0 && (
+            <Grid.Col>
+              <Paper p="xl" withBorder>
+                <Stack align="center" spacing="md">
+                  <Title order={3}>No Environments</Title>
+                  <Text color="dimmed">
+                    Create your first environment to get started.
+                  </Text>
+                  <Button 
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => onNavigate('create-environment')}
+                  >
+                    Create Environment
+                  </Button>
+                </Stack>
+              </Paper>
+            </Grid.Col>
+          )}
         </Grid>
       </Stack>
 
       <Modal
-        opened={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        opened={deleteModalOpened}
+        onClose={() => setDeleteModalOpened(false)}
+        title="Delete Environment"
+      >
+        <Stack spacing="md">
+          <Text>
+            Are you sure you want to delete the environment "{environmentToDelete?.name}"?
+            This action cannot be undone.
+          </Text>
+          <Group position="right">
+            <Button variant="light" onClick={() => setDeleteModalOpened(false)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={handleDeleteEnvironment}>
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={!!editingEnv}
+        onClose={() => setEditingEnv(null)}
         title="Edit Environment"
-        size="xl"
       >
         <Stack spacing="md">
           <TextInput
-            label="Environment Name"
-            value={editingEnvironment?.name || ''}
-            onChange={(e) => setEditingEnvironment({
-              ...editingEnvironment,
-              name: e.target.value
-            })}
+            label="Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            required
           />
-
+          <MultiSelect
+            label="Stocks"
+            value={editStocks}
+            onChange={setEditStocks}
+            data={availableStocks.map(stock => ({ value: stock, label: stock }))}
+            searchable
+            creatable
+            getCreateLabel={(query) => `+ Add ${query}`}
+            onCreate={(query) => query}
+            required
+          />
           <TextInput
-            placeholder="Search by ticker or company name"
-            icon={<IconSearch size={16} />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            label="Start Date"
+            type="date"
+            value={editStartDate}
+            onChange={(e) => setEditStartDate(e.target.value)}
+            required
           />
-
-          <Badge size="lg" variant="filled" color={selectedStocks.length === 10 ? 'green' : 'blue'}>
-            {selectedStocks.length}/10 Stocks Selected
-          </Badge>
-
-          <Divider />
-
-          <ScrollArea h={400}>
-            {sectors.map(sector => (
-              <Stack key={sector} spacing="xs" mb="xl">
-                <Title order={3}>{sector}</Title>
-                <Table>
-                  <thead>
-                    <tr>
-                      <th style={{ width: 50 }}></th>
-                      <th>Ticker</th>
-                      <th>Company Name</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(searchQuery 
-                      ? sp500Stocks.filter(stock => 
-                          stock.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          stock.name.toLowerCase().includes(searchQuery.toLowerCase())
-                        )
-                      : sp500Stocks)
-                      .filter(stock => stock.sector === sector)
-                      .map((stock) => (
-                        <tr key={stock.ticker}>
-                          <td>
-                            <Checkbox
-                              checked={selectedStocks.includes(stock.ticker)}
-                              onChange={() => handleStockSelect(stock.ticker)}
-                              disabled={!selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10}
-                            />
-                          </td>
-                          <td>{stock.ticker}</td>
-                          <td>{stock.name}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </Table>
-              </Stack>
-            ))}
-          </ScrollArea>
-
+          <TextInput
+            label="End Date"
+            type="date"
+            value={editEndDate}
+            onChange={(e) => setEditEndDate(e.target.value)}
+            required
+          />
           <Group position="right">
-            <Button variant="light" onClick={() => setShowEditModal(false)}>
+            <Button variant="light" onClick={() => setEditingEnv(null)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>
+            <Button onClick={handleEditEnvironment}>
               Save Changes
             </Button>
           </Group>
@@ -256,6 +338,6 @@ function EnvironmentsPage({ onBack, environments, setEnvironments, onCreateNew }
       </Modal>
     </Container>
   );
-}
+};
 
 export default EnvironmentsPage; 

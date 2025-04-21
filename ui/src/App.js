@@ -1,6 +1,7 @@
 import Login from "./Login"
 import Signup from "./Signup";
 import Home from "./Home";
+import CreateEnvironmentPage from "./components/CreateEnvironmentPage";
 
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
