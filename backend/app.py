@@ -431,3 +431,52 @@ async def create_simulation(
     env.simulations.append(new_simulation)
     
     return Response(status_code=status.HTTP_200_OK)
+
+@app.delete("/environments/{env_name}", status_code=status.HTTP_200_OK, response_class=Response)
+async def delete_environment(
+    env_name: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete an environment and all its simulations."""
+    user_id = current_user.username
+    
+    if user_id not in environments:
+        raise HTTPException(status_code=404, detail="No environments found")
+    
+    if env_name not in environments[user_id]:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    # Delete the environment
+    del environments[user_id][env_name]
+    
+    return Response(status_code=status.HTTP_200_OK)
+
+@app.delete("/{env_name}/simulations/{simulation_name}", status_code=status.HTTP_200_OK, response_class=Response)
+async def delete_simulation(
+    env_name: str,
+    simulation_name: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a specific simulation from an environment."""
+    user_id = current_user.username
+    
+    if user_id not in environments:
+        raise HTTPException(status_code=404, detail="No environments found")
+    
+    if env_name not in environments[user_id]:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[user_id][env_name]
+    
+    # Find and remove the simulation
+    simulation_index = next(
+        (i for i, sim in enumerate(env.simulations) if sim.name == simulation_name),
+        None
+    )
+    
+    if simulation_index is None:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    
+    env.simulations.pop(simulation_index)
+    
+    return Response(status_code=status.HTTP_200_OK)
