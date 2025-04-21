@@ -36,6 +36,7 @@ import {
 } from '@tabler/icons-react';
 import CreateEnvironmentPage from './components/CreateEnvironmentPage';
 import EnvironmentsPage from './components/EnvironmentsPage';
+import SimulationsPage from './components/SimulationsPage';
 
 function Home() {
   const theme = useMantineTheme();
@@ -55,6 +56,12 @@ function Home() {
         return (
           <CreateEnvironmentPage
             onBack={() => setActivePage('environments')}
+          />
+        );
+      case 'simulations':
+        return (
+          <SimulationsPage
+            onBack={() => setActivePage('home')}
           />
         );
       case 'home':
@@ -271,6 +278,24 @@ function Home() {
               <Group>
                 <IconFolder size={16} />
                 <Text size="sm">Your Environments</Text>
+              </Group>
+            </UnstyledButton>
+
+            <UnstyledButton
+              onClick={() => setActivePage('simulations')}
+              py="xs"
+              px="md"
+              fw={500}
+              style={(theme) => ({
+                borderRadius: theme.radius.sm,
+                '&:hover': {
+                  backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[6] : theme.colors.gray[0],
+                },
+              })}
+            >
+              <Group>
+                <IconChartLine size={16} />
+                <Text size="sm">Your Simulations</Text>
               </Group>
             </UnstyledButton>
           </Stack>

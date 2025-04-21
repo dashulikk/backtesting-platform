@@ -54,7 +54,7 @@ class ApiError extends Error {
 const API_BASE_URL = 'http://127.0.0.1:8000';
 const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMSIsImV4cCI6MTc0NTMzNDM2MX0.LyO--4YA7RV4NE55alMErbKMiGkWvpPSjTPZYjsqvVI';
 
-class Api {
+export class Api {
     private baseUrl: string;
     private token: string;
 
@@ -172,31 +172,68 @@ class Api {
     }
 
     async getSimulation(envName: string, simulationName: string): Promise<Simulation> {
-        const response = await fetch(`${this.baseUrl}/${envName}/${simulationName}`, {
+        const url = `${this.baseUrl}/${envName}/${simulationName}`;
+        console.log('Fetching simulation:', { url });
+        
+        const response = await fetch(url, {
             headers: this.getHeaders(),
+            credentials: 'include'
         });
         return this.handleResponse<Simulation>(response);
     }
 
-    async createSimulation(envName: string, simulation: {
+    async createSimulation(envName: string, data: {
         name: string;
         start_date: string;
         end_date: string;
         strategies: Strategy[];
     }): Promise<void> {
-        const response = await fetch(`${this.baseUrl}/${envName}/simulations`, {
-            method: 'POST',
-            headers: this.getHeaders(),
-            body: JSON.stringify(simulation),
+        const url = `${this.baseUrl}/${envName}/simulations`;
+        console.log('Creating simulation:', {
+            url,
+            envName,
+            data
         });
-        await this.handleResponse<void>(response);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Failed to create simulation:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorText
+                });
+                throw new Error(`Failed to create simulation: ${errorText}`);
+            }
+
+            await this.handleResponse<void>(response);
+            console.log('Simulation created successfully');
+        } catch (error) {
+            console.error('Error in createSimulation:', error);
+            throw error;
+        }
     }
 
     async deleteSimulation(envName: string, simulationName: string): Promise<void> {
-        const response = await fetch(`${this.baseUrl}/${envName}/simulations/${simulationName}`, {
+        const url = `${this.baseUrl}/${envName}/simulations/${simulationName}`;
+        console.log('Deleting simulation:', {
+            url,
+            simulationName
+        });
+
+        const response = await fetch(url, {
             method: 'DELETE',
             headers: this.getHeaders(),
+            credentials: 'include'
         });
+
         await this.handleResponse<void>(response);
     }
 
