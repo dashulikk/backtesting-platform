@@ -6,232 +6,341 @@ import {
   Button,
   Group,
   Stack,
-  Paper,
-  Grid,
   Card,
   ThemeIcon,
   ActionIcon,
   Menu,
-  Badge,
-  LoadingOverlay,
   Modal,
+  Badge,
+  Divider,
+  Paper,
+  Grid,
+  Loader,
+  Center,
   TextInput,
-  Accordion
+  MultiSelect,
+  NumberInput
 } from '@mantine/core';
-import {
-  IconArrowLeft,
-  IconDots,
-  IconPencil,
-  IconTrash,
-  IconPlus,
-  IconCalendar,
-  IconCheck
+import { 
+  IconPlus, 
+  IconTrash, 
+  IconPencil, 
+  IconChartLine,
+  IconArrowLeft
 } from '@tabler/icons-react';
-import { api } from '../services/api';
 
-function EnvironmentsPage({ onBack, onCreateNew }) {
+const EnvironmentsPage = ({ onBack, onNavigate }) => {
   const [environments, setEnvironments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [environmentToDelete, setEnvironmentToDelete] = useState(null);
   const [editingEnv, setEditingEnv] = useState(null);
   const [editName, setEditName] = useState('');
-  const [editStocks, setEditStocks] = useState('');
-
-  const fetchEnvironments = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.getEnvironments();
-      console.log('Fetched environments:', data);
-      setEnvironments(data);
-    } catch (err) {
-      console.error('Error fetching environments:', err);
-      setError(err.message || 'Failed to load environments');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [editStocks, setEditStocks] = useState([]);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [availableStocks, setAvailableStocks] = useState([
+    'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT'
+  ]);
 
   useEffect(() => {
     fetchEnvironments();
   }, []);
 
-  const handleDeleteEnvironment = async (envName) => {
+  const fetchEnvironments = async () => {
     try {
-      await api.deleteEnvironment(envName);
-      await fetchEnvironments();
+      setLoading(true);
+      const response = await fetch('http://localhost:8000/envs', {
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch environments');
+      }
+      
+      const data = await response.json();
+      setEnvironments(data);
     } catch (err) {
-      console.error('Error deleting environment:', err);
-      setError(err.message || 'Failed to delete environment');
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEditClick = (environment) => {
-    setEditingEnv(environment);
-    setEditName(environment.name);
-    setEditStocks(environment.stocks.join(', '));
-  };
-
-  const handleEditSubmit = async () => {
+  const handleEditEnvironment = async () => {
+    if (!editingEnv) return;
+    
     try {
-      const stocks = editStocks.split(',').map(s => s.trim()).filter(Boolean);
+      // First delete the old environment
+      const deleteUrl = `http://localhost:8000/environments/${encodeURIComponent(editingEnv.name)}`;
+      console.log('Deleting environment at URL:', deleteUrl);
       
-      if (stocks.length === 0) {
-        setError('Please enter valid stock symbols');
-        return;
+      const deleteResponse = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!deleteResponse.ok) {
+        const errorData = await deleteResponse.json().catch(() => null);
+        console.error('Delete response:', errorData);
+        throw new Error(errorData?.detail || `Failed to delete environment: ${deleteResponse.status} ${deleteResponse.statusText}`);
       }
 
-      await api.deleteEnvironment(editingEnv.name);
-      
-      await api.createEnvironment({
+      // Then create a new environment with updated values
+      const createData = {
         name: editName,
-        stocks: stocks
+        stocks: editStocks,
+        start_date: editStartDate,
+        end_date: editEndDate
+      };
+      console.log('Creating new environment with data:', createData);
+      
+      const createResponse = await fetch('http://localhost:8000/environments', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createData),
       });
-
-      setEditingEnv(null);
+      
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => null);
+        console.error('Create response:', errorData);
+        throw new Error(errorData?.detail || `Failed to create environment: ${createResponse.status} ${createResponse.statusText}`);
+      }
+      
+      // Refresh environments to get the updated data
       await fetchEnvironments();
+      setEditingEnv(null);
     } catch (err) {
       console.error('Error updating environment:', err);
-      setError(err.message || 'Failed to update environment');
+      setError(err.message);
     }
   };
 
+  const handleDeleteEnvironment = async () => {
+    if (!environmentToDelete) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/environments/${environmentToDelete.name}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer test-token-for-user1'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete environment');
+      }
+      
+      // Refresh environments to get the updated data
+      fetchEnvironments();
+      setDeleteModalOpened(false);
+      setEnvironmentToDelete(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const openEditModal = (env) => {
+    setEditingEnv(env);
+    setEditName(env.name);
+    setEditStocks(env.stocks);
+    setEditStartDate(env.start_date);
+    setEditEndDate(env.end_date);
+  };
+
+  if (loading) {
+    return (
+      <Center style={{ height: '100%' }}>
+        <Loader size="xl" />
+      </Center>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container size="md" py="xl">
+        <Paper p="xl" withBorder>
+          <Stack align="center" spacing="md">
+            <Title order={2} color="red">Error</Title>
+            <Text>{error}</Text>
+            <Button onClick={fetchEnvironments}>Retry</Button>
+          </Stack>
+        </Paper>
+      </Container>
+    );
+  }
+
   return (
-    <Container size="xl" py="xl">
+    <Container size="xl" py="xl" style={{ overflowY: 'auto', height: '100%' }}>
       <Stack spacing="xl">
         <Group position="apart">
           <Group>
             <ActionIcon onClick={onBack} size="lg" variant="subtle">
               <IconArrowLeft size={20} />
             </ActionIcon>
-            <Title order={2}>Your Environments</Title>
+            <Title order={2}>Environments</Title>
           </Group>
-          <Button
+          <Button 
             leftSection={<IconPlus size={16} />}
-            onClick={onCreateNew}
-            size="sm"
+            onClick={() => onNavigate('create-environment')}
           >
             New Environment
           </Button>
         </Group>
 
-        {error && (
-          <Paper p="md" bg="red.1" c="red.8">
-            <Text>{error}</Text>
-          </Paper>
-        )}
-
-        <div style={{ position: 'relative', minHeight: loading ? '200px' : 'auto' }}>
-          <LoadingOverlay visible={loading} overlayBlur={2} />
-          
-          <Grid>
-            {environments.map((environment) => (
-              <Grid.Col key={environment.name} span={4}>
-                <Card shadow="sm" padding="lg" withBorder>
-                  <Card.Section>
-                    <Group position="apart" p="md">
-                      <ThemeIcon size="lg" color="blue" variant="light">
-                        <IconPencil size={20} />
-                      </ThemeIcon>
-                      <ThemeIcon 
-                        size="lg" 
-                        color="red" 
-                        variant="light"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => handleDeleteEnvironment(environment.name)}
-                      >
-                        <IconTrash size={20} />
-                      </ThemeIcon>
-                    </Group>
-                  </Card.Section>
-
-                  <Stack spacing="xs">
-                    <Text size="lg" weight={500}>
-                      {environment.name}
-                    </Text>
-                    <Text size="sm" color="dimmed">
-                      {environment.stocks.length} stocks selected
-                    </Text>
-                    <Badge variant="light" color="blue">
-                      {environment.stocks.join(', ')}
-                    </Badge>
-
-                    {environment.simulations && environment.simulations.length > 0 && (
-                      <Accordion variant="contained" mt="sm">
-                        <Accordion.Item value="simulations">
-                          <Accordion.Control>
-                            <Group>
-                              <IconCalendar size={16} />
-                              <Text size="sm">
-                                {environment.simulations.length} Simulations
-                              </Text>
-                            </Group>
-                          </Accordion.Control>
-                          <Accordion.Panel>
-                            <Stack spacing="xs">
-                              {environment.simulations.map((sim) => (
-                                <Card key={sim.name} withBorder size="sm" padding="xs">
-                                  <Text size="sm" weight={500}>{sim.name}</Text>
-                                  <Text size="xs" color="dimmed">
-                                    {new Date(sim.start_date).toLocaleDateString()} - {new Date(sim.end_date).toLocaleDateString()}
-                                  </Text>
-                                  <Text size="xs" color="dimmed">
-                                    {sim.strategies.length} strategies
-                                  </Text>
-                                </Card>
-                              ))}
-                            </Stack>
-                          </Accordion.Panel>
-                        </Accordion.Item>
-                      </Accordion>
-                    )}
-                  </Stack>
-                </Card>
-              </Grid.Col>
-            ))}
-          </Grid>
-        </div>
+        <Grid>
+          {environments.map((environment) => (
+            <Grid.Col key={environment.name} span={4}>
+              <Card withBorder p="md">
+                <Group position="apart">
+                  <Group>
+                    <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                      <IconChartLine size={16} />
+                    </ThemeIcon>
+                    <div>
+                      <Text weight={500}>{environment.name}</Text>
+                      <Text size="xs" color="dimmed">{environment.stocks.join(', ')}</Text>
+                    </div>
+                  </Group>
+                  <Group spacing="xs">
+                    <ThemeIcon 
+                      size="lg" 
+                      color="blue" 
+                      variant="light"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => openEditModal(environment)}
+                    >
+                      <IconPencil size={20} />
+                    </ThemeIcon>
+                    <ThemeIcon 
+                      size="lg" 
+                      color="red" 
+                      variant="light"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setEnvironmentToDelete(environment);
+                        setDeleteModalOpened(true);
+                      }}
+                    >
+                      <IconTrash size={20} />
+                    </ThemeIcon>
+                  </Group>
+                </Group>
+                
+                <Divider my="sm" />
+                
+                <Stack spacing="xs">
+                  <Group position="apart">
+                    <Text size="sm" weight={500}>Date Range:</Text>
+                    <Text size="sm">{environment.start_date} to {environment.end_date}</Text>
+                  </Group>
+                  <Group position="apart">
+                    <Text size="sm" weight={500}>Strategies:</Text>
+                    <Badge>{environment.strategies.length}</Badge>
+                  </Group>
+                </Stack>
+              </Card>
+            </Grid.Col>
+          ))}
+          {environments.length === 0 && (
+            <Grid.Col>
+              <Paper p="xl" withBorder>
+                <Stack align="center" spacing="md">
+                  <Title order={3}>No Environments</Title>
+                  <Text color="dimmed">
+                    Create your first environment to get started.
+                  </Text>
+                  <Button 
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => onNavigate('create-environment')}
+                  >
+                    Create Environment
+                  </Button>
+                </Stack>
+              </Paper>
+            </Grid.Col>
+          )}
+        </Grid>
       </Stack>
 
       <Modal
-        opened={editingEnv !== null}
+        opened={deleteModalOpened}
+        onClose={() => setDeleteModalOpened(false)}
+        title="Delete Environment"
+      >
+        <Stack spacing="md">
+          <Text>
+            Are you sure you want to delete the environment "{environmentToDelete?.name}"?
+            This action cannot be undone.
+          </Text>
+          <Group position="right">
+            <Button variant="light" onClick={() => setDeleteModalOpened(false)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={handleDeleteEnvironment}>
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={!!editingEnv}
         onClose={() => setEditingEnv(null)}
         title="Edit Environment"
       >
-        <div style={{ position: 'relative' }}>
-          <LoadingOverlay visible={loading} overlayBlur={2} />
-          <Stack spacing="md">
-            <TextInput
-              label="Environment Name"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              error={error}
-              required
-            />
-            <TextInput
-              label="Stock Symbols"
-              value={editStocks}
-              onChange={(e) => setEditStocks(e.target.value)}
-              description="Enter comma-separated stock symbols (e.g., AAPL, GOOGL, MSFT)"
-              required
-            />
-            <Group position="right">
-              <Button variant="light" onClick={() => setEditingEnv(null)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleEditSubmit}
-                disabled={!editName.trim() || loading}
-                leftIcon={<IconCheck size={16} />}
-              >
-                Save Changes
-              </Button>
-            </Group>
-          </Stack>
-        </div>
+        <Stack spacing="md">
+          <TextInput
+            label="Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            required
+          />
+          <MultiSelect
+            label="Stocks"
+            value={editStocks}
+            onChange={setEditStocks}
+            data={availableStocks.map(stock => ({ value: stock, label: stock }))}
+            searchable
+            creatable
+            getCreateLabel={(query) => `+ Add ${query}`}
+            onCreate={(query) => query}
+            required
+          />
+          <TextInput
+            label="Start Date"
+            type="date"
+            value={editStartDate}
+            onChange={(e) => setEditStartDate(e.target.value)}
+            required
+          />
+          <TextInput
+            label="End Date"
+            type="date"
+            value={editEndDate}
+            onChange={(e) => setEditEndDate(e.target.value)}
+            required
+          />
+          <Group position="right">
+            <Button variant="light" onClick={() => setEditingEnv(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditEnvironment}>
+              Save Changes
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </Container>
   );
-}
+};
 
 export default EnvironmentsPage; 

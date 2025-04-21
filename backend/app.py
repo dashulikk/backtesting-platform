@@ -109,18 +109,13 @@ class ExampleStrategy2(Strategy):
     a: float
     b: float
 
-# Simulation model
-class Simulation(BaseModel):
-    name: str
-    start_date: date
-    end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2]]
-
-# Environment model
+# Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
     name: str
     stocks: List[str]
-    simulations: List[Simulation]
+    start_date: date
+    end_date: date
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2]]
 
 # New model for returns data
 class ReturnsData(BaseModel):
@@ -155,25 +150,21 @@ environments["user1"] = {
     "test1": Environment(
         name="test1",
         stocks=["AAPL", "GOOGL", "MSFT", "AMZN"],
-        simulations=[
-            Simulation(
-                name="momentum_strategy",
-                start_date=date(2023, 1, 1),
-                end_date=date(2023, 12, 31),
-                strategies=[
-                    ExampleStrategy(name="momentum_1", type="ExampleStrategy", days=20, n=5),
-                    ExampleStrategy2(name="mean_rev_2", type="ExampleStrategy2", a=0.3, b=1.5)
-                ]
-            ),
-            Simulation(
-                name="mean_reversion",
-                start_date=date(2023, 6, 1),
-                end_date=date(2023, 12, 31),
-                strategies=[
-                    ExampleStrategy2(name="mean_rev_1", type="ExampleStrategy2", a=0.5, b=2.0),
-                    ExampleStrategy(name="momentum_2", type="ExampleStrategy", days=50, n=10)
-                ]
-            )
+        start_date=date(2023, 1, 1),
+        end_date=date(2023, 12, 31),
+        strategies=[
+            ExampleStrategy(name="momentum_1", type="ExampleStrategy", days=20, n=5),
+            ExampleStrategy2(name="mean_rev_2", type="ExampleStrategy2", a=0.3, b=1.5)
+        ]
+    ),
+    "test2": Environment(
+        name="test2",
+        stocks=["TSLA", "META", "NFLX", "NVDA"],
+        start_date=date(2023, 1, 1),
+        end_date=date(2023, 12, 31),
+        strategies=[
+            ExampleStrategy(name="momentum_3", type="ExampleStrategy", days=30, n=7),
+            ExampleStrategy2(name="mean_rev_4", type="ExampleStrategy2", a=0.4, b=1.8)
         ]
     )
 }
@@ -186,18 +177,18 @@ async def get_environments(current_user: User = Depends(get_current_user)):
         return []
     return list(environments[user_id].values())
 
-@app.get("/{env_name}/{simulation_name}", response_model=Simulation)
-async def get_simulation(
+@app.get("/{env_name}", response_model=Environment)
+async def get_environment(
     env_name: str,
-    simulation_name: str,
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get a specific simulation with all its details including strategies.
+    Get a specific environment with all its details including strategies.
     
     Returns:
-        Simulation object containing:
+        Environment object containing:
         - name: str
+        - stocks: List[str]
         - start_date: date
         - end_date: date
         - strategies: List[Strategy] with all strategy fields
@@ -210,19 +201,14 @@ async def get_simulation(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    simulation = next((s for s in env.simulations if s.name == simulation_name), None)
-    if not simulation:
-        raise HTTPException(status_code=404, detail="Simulation not found")
-    
-    return simulation
+    return env
 
-@app.get("/{env_name}/{simulation_name}/returns", response_model=Optional[List[ReturnsData]])
-async def get_simulation_returns(
+@app.get("/{env_name}/returns", response_model=Optional[List[ReturnsData]])
+async def get_environment_returns(
     env_name: str,
-    simulation_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Get returns data for the specified simulation."""
+    """Get returns data for the specified environment."""
     user_id = current_user.username
     if user_id not in environments:
         raise HTTPException(status_code=404, detail="No environments found")
@@ -231,18 +217,14 @@ async def get_simulation_returns(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    simulation = next((s for s in env.simulations if s.name == simulation_name), None)
-    if not simulation:
-        raise HTTPException(status_code=404, detail="Simulation not found")
-    
-    # Return None for momentum_strategy
-    if simulation_name == "momentum_strategy":
+    # Return None for test2
+    if env_name == "test2":
         return None
     
     # Generate dummy returns data
     returns_data = []
-    current_date = simulation.start_date
-    end_date = simulation.end_date
+    current_date = env.start_date
+    end_date = env.end_date
     
     while current_date <= end_date:
         daily_return = random.uniform(-2.0, 2.0)
@@ -254,13 +236,12 @@ async def get_simulation_returns(
     
     return returns_data
 
-@app.get("/{env_name}/{simulation_name}/portfolio", response_model=Optional[List[PortfolioData]])
-async def get_simulation_portfolio(
+@app.get("/{env_name}/portfolio", response_model=Optional[List[PortfolioData]])
+async def get_environment_portfolio(
     env_name: str,
-    simulation_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Get portfolio data for the specified simulation."""
+    """Get portfolio data for the specified environment."""
     user_id = current_user.username
     if user_id not in environments:
         raise HTTPException(status_code=404, detail="No environments found")
@@ -269,16 +250,13 @@ async def get_simulation_portfolio(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    simulation = next((s for s in env.simulations if s.name == simulation_name), None)
-    if not simulation:
-        raise HTTPException(status_code=404, detail="Simulation not found")
-    
-    if simulation_name == "momentum_strategy":
+    # Return None for test2
+    if env_name == "test2":
         return None
     
     portfolio_data = []
-    current_date = simulation.start_date
-    end_date = simulation.end_date
+    current_date = env.start_date
+    end_date = env.end_date
     
     positions = {stock: random.uniform(-100, 100) for stock in env.stocks}
     
@@ -296,13 +274,12 @@ async def get_simulation_portfolio(
     
     return portfolio_data
 
-@app.get("/{env_name}/{simulation_name}/trades", response_model=Optional[List[TradeData]])
-async def get_simulation_trades(
+@app.get("/{env_name}/trades", response_model=Optional[List[TradeData]])
+async def get_environment_trades(
     env_name: str,
-    simulation_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Get trades data for the specified simulation."""
+    """Get trades data for the specified environment."""
     user_id = current_user.username
     if user_id not in environments:
         raise HTTPException(status_code=404, detail="No environments found")
@@ -311,16 +288,13 @@ async def get_simulation_trades(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    simulation = next((s for s in env.simulations if s.name == simulation_name), None)
-    if not simulation:
-        raise HTTPException(status_code=404, detail="Simulation not found")
-    
-    if simulation_name == "momentum_strategy":
+    # Return None for test2
+    if env_name == "test2":
         return None
     
     trades_data = []
-    current_date = simulation.start_date
-    end_date = simulation.end_date
+    current_date = env.start_date
+    end_date = env.end_date
     
     while current_date <= end_date:
         if random.random() < 0.2:
@@ -342,13 +316,12 @@ async def get_simulation_trades(
     trades_data.sort(key=lambda x: x.date)
     return trades_data
 
-@app.post("/{env_name}/{simulation_name}/backtest", status_code=status.HTTP_200_OK, response_class=Response)
+@app.post("/{env_name}/backtest", status_code=status.HTTP_200_OK, response_class=Response)
 async def run_backtest(
     env_name: str,
-    simulation_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Trigger a backtest for the specified simulation."""
+    """Trigger a backtest for the specified environment."""
     user_id = current_user.username
     if user_id not in environments:
         raise HTTPException(status_code=404, detail="No environments found")
@@ -357,22 +330,17 @@ async def run_backtest(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    simulation = next((s for s in env.simulations if s.name == simulation_name), None)
-    if not simulation:
-        raise HTTPException(status_code=404, detail="Simulation not found")
-    
     return Response(status_code=status.HTTP_200_OK)
 
 # Request models for creating new items
 class CreateEnvironmentRequest(BaseModel):
     name: str
     stocks: List[str]
-
-class CreateSimulationRequest(BaseModel):
-    name: str
     start_date: date
     end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2]]
+
+class AddStrategyRequest(BaseModel):
+    strategy: Union[ExampleStrategy, ExampleStrategy2]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(
@@ -393,11 +361,13 @@ async def create_environment(
             detail="Environment with this name already exists"
         )
     
-    # Create new environment
+    # Create new environment without strategies
     new_env = Environment(
         name=request.name,
         stocks=request.stocks,
-        simulations=[]
+        start_date=request.start_date,
+        end_date=request.end_date,
+        strategies=[]
     )
     
     # Save it
@@ -405,13 +375,13 @@ async def create_environment(
     
     return Response(status_code=status.HTTP_200_OK)
 
-@app.post("/{env_name}/simulations", status_code=status.HTTP_200_OK, response_class=Response)
-async def create_simulation(
+@app.post("/{env_name}/strategies", status_code=status.HTTP_200_OK, response_class=Response)
+async def add_strategy(
     env_name: str,
-    request: CreateSimulationRequest,
+    request: AddStrategyRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new simulation in the specified environment."""
+    """Add a strategy to an environment."""
     user_id = current_user.username
     
     # Check if user and environment exist
@@ -421,24 +391,48 @@ async def create_simulation(
     if env_name not in environments[user_id]:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    # Check if simulation with this name already exists
     env = environments[user_id][env_name]
-    if any(sim.name == request.name for sim in env.simulations):
+    
+    # Check if strategy with this name already exists
+    if any(s.name == request.strategy.name for s in env.strategies):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Simulation with this name already exists in this environment"
+            detail="Strategy with this name already exists in this environment"
         )
     
-    # Create new simulation
-    new_simulation = Simulation(
-        name=request.name,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        strategies=request.strategies
+    # Add the strategy
+    env.strategies.append(request.strategy)
+    
+    return Response(status_code=status.HTTP_200_OK)
+
+@app.delete("/{env_name}/strategies/{strategy_name}", status_code=status.HTTP_200_OK, response_class=Response)
+async def delete_strategy(
+    env_name: str,
+    strategy_name: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a strategy from an environment."""
+    user_id = current_user.username
+    
+    # Check if user and environment exist
+    if user_id not in environments:
+        raise HTTPException(status_code=404, detail="No environments found")
+    
+    if env_name not in environments[user_id]:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    env = environments[user_id][env_name]
+    
+    # Find and remove the strategy
+    strategy_index = next(
+        (i for i, strategy in enumerate(env.strategies) if strategy.name == strategy_name),
+        None
     )
     
-    # Add to environment
-    env.simulations.append(new_simulation)
+    if strategy_index is None:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    env.strategies.pop(strategy_index)
     
     return Response(status_code=status.HTTP_200_OK)
 
@@ -447,7 +441,7 @@ async def delete_environment(
     env_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Delete an environment and all its simulations."""
+    """Delete an environment."""
     user_id = current_user.username
     
     if user_id not in environments:
@@ -458,35 +452,5 @@ async def delete_environment(
     
     # Delete the environment
     del environments[user_id][env_name]
-    
-    return Response(status_code=status.HTTP_200_OK)
-
-@app.delete("/{env_name}/simulations/{simulation_name}", status_code=status.HTTP_200_OK, response_class=Response)
-async def delete_simulation(
-    env_name: str,
-    simulation_name: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Delete a specific simulation from an environment."""
-    user_id = current_user.username
-    
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    if env_name not in environments[user_id]:
-        raise HTTPException(status_code=404, detail="Environment not found")
-    
-    env = environments[user_id][env_name]
-    
-    # Find and remove the simulation
-    simulation_index = next(
-        (i for i, sim in enumerate(env.simulations) if sim.name == simulation_name),
-        None
-    )
-    
-    if simulation_index is None:
-        raise HTTPException(status_code=404, detail="Simulation not found")
-    
-    env.simulations.pop(simulation_index)
     
     return Response(status_code=status.HTTP_200_OK)
