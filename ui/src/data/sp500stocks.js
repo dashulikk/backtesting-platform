@@ -203,7 +203,6 @@ export const sp500Stocks = [
   { ticker: "GM", name: "General Motors Company", sector: "Consumer Discretionary" },
   { ticker: "GNRC", name: "Generac Holdings Inc.", sector: "Industrials" },
   { ticker: "GOOG", name: "Alphabet Inc. Class C", sector: "Communication Services" },
-  { ticker: "GOOGL", name: "Alphabet Inc. Class A", sector: "Communication Services" },
   { ticker: "GPC", name: "Genuine Parts Company", sector: "Consumer Discretionary" },
   { ticker: "GPN", name: "Global Payments Inc.", sector: "Information Technology" },
   { ticker: "GRMN", name: "Garmin Ltd.", sector: "Consumer Discretionary" },
