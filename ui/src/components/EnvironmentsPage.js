@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Title,
@@ -13,99 +13,88 @@ import {
   ActionIcon,
   Menu,
   Badge,
+  LoadingOverlay,
   Modal,
   TextInput,
-  Checkbox,
-  ScrollArea,
-  Table,
-  Divider
+  Accordion
 } from '@mantine/core';
 import {
   IconArrowLeft,
   IconDots,
   IconPencil,
   IconTrash,
-  IconFolder,
   IconPlus,
-  IconSearch
+  IconCalendar,
+  IconCheck
 } from '@tabler/icons-react';
+import { api } from '../services/api';
 
-function EnvironmentsPage({ onBack, environments, setEnvironments, onCreateNew }) {
-  const [editingEnvironment, setEditingEnvironment] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStocks, setSelectedStocks] = useState([]);
+function EnvironmentsPage({ onBack, onCreateNew }) {
+  const [environments, setEnvironments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingEnv, setEditingEnv] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editStocks, setEditStocks] = useState('');
 
-  // Mock SP500 stocks data - this should be replaced with actual data
-  const sp500Stocks = [
-    // Technology
-    { ticker: 'AAPL', name: 'Apple Inc.', sector: 'Technology' },
-    { ticker: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology' },
-    { ticker: 'AMZN', name: 'Amazon.com Inc.', sector: 'Technology' },
-    { ticker: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology' },
-    { ticker: 'META', name: 'Meta Platforms Inc.', sector: 'Technology' },
-    { ticker: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology' },
-    { ticker: 'TSLA', name: 'Tesla Inc.', sector: 'Technology' },
-    { ticker: 'ADBE', name: 'Adobe Inc.', sector: 'Technology' },
-    { ticker: 'CRM', name: 'Salesforce Inc.', sector: 'Technology' },
-    { ticker: 'INTC', name: 'Intel Corporation', sector: 'Technology' },
-
-    // Healthcare
-    { ticker: 'JNJ', name: 'Johnson & Johnson', sector: 'Healthcare' },
-    { ticker: 'PFE', name: 'Pfizer Inc.', sector: 'Healthcare' },
-    { ticker: 'ABBV', name: 'AbbVie Inc.', sector: 'Healthcare' },
-    { ticker: 'MRK', name: 'Merck & Co.', sector: 'Healthcare' },
-    { ticker: 'ABT', name: 'Abbott Laboratories', sector: 'Healthcare' },
-
-    // Financials
-    { ticker: 'BRK.B', name: 'Berkshire Hathaway Inc.', sector: 'Financials' },
-    { ticker: 'JPM', name: 'JPMorgan Chase & Co.', sector: 'Financials' },
-    { ticker: 'BAC', name: 'Bank of America Corp.', sector: 'Financials' },
-    { ticker: 'WFC', name: 'Wells Fargo & Company', sector: 'Financials' },
-    { ticker: 'GS', name: 'Goldman Sachs Group Inc.', sector: 'Financials' },
-
-    // Consumer Discretionary
-    { ticker: 'WMT', name: 'Walmart Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'HD', name: 'Home Depot Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'MCD', name: 'McDonald\'s Corporation', sector: 'Consumer Discretionary' },
-    { ticker: 'NKE', name: 'Nike Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'SBUX', name: 'Starbucks Corporation', sector: 'Consumer Discretionary' }
-  ];
-
-  const handleEditEnvironment = (environment) => {
-    setEditingEnvironment(environment);
-    setSelectedStocks(environment.stocks);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteEnvironment = (environmentId) => {
-    setEnvironments(environments.filter(env => env.id !== environmentId));
-  };
-
-  const handleSaveEdit = () => {
-    if (editingEnvironment) {
-      setEnvironments(environments.map(env => 
-        env.id === editingEnvironment.id 
-          ? { ...editingEnvironment, stocks: selectedStocks }
-          : env
-      ));
-      setShowEditModal(false);
-      setEditingEnvironment(null);
-      setSelectedStocks([]);
+  const fetchEnvironments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.getEnvironments();
+      console.log('Fetched environments:', data);
+      setEnvironments(data);
+    } catch (err) {
+      console.error('Error fetching environments:', err);
+      setError(err.message || 'Failed to load environments');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleStockSelect = (ticker) => {
-    if (selectedStocks.includes(ticker)) {
-      setSelectedStocks(selectedStocks.filter(t => t !== ticker));
-    } else {
-      if (selectedStocks.length < 10) {
-        setSelectedStocks([...selectedStocks, ticker]);
+  useEffect(() => {
+    fetchEnvironments();
+  }, []);
+
+  const handleDeleteEnvironment = async (envName) => {
+    try {
+      await api.deleteEnvironment(envName);
+      await fetchEnvironments();
+    } catch (err) {
+      console.error('Error deleting environment:', err);
+      setError(err.message || 'Failed to delete environment');
+    }
+  };
+
+  const handleEditClick = (environment) => {
+    setEditingEnv(environment);
+    setEditName(environment.name);
+    setEditStocks(environment.stocks.join(', '));
+  };
+
+  const handleEditSubmit = async () => {
+    try {
+      const stocks = editStocks.split(',').map(s => s.trim()).filter(Boolean);
+      
+      if (stocks.length === 0) {
+        setError('Please enter valid stock symbols');
+        return;
       }
+
+      await api.deleteEnvironment(editingEnv.name);
+      
+      await api.createEnvironment({
+        name: editName,
+        stocks: stocks
+      });
+
+      setEditingEnv(null);
+      await fetchEnvironments();
+    } catch (err) {
+      console.error('Error updating environment:', err);
+      setError(err.message || 'Failed to update environment');
     }
   };
-
-  const sectors = [...new Set(sp500Stocks.map(stock => stock.sector))];
 
   return (
     <Container size="xl" py="xl">
@@ -118,141 +107,128 @@ function EnvironmentsPage({ onBack, environments, setEnvironments, onCreateNew }
             <Title order={2}>Your Environments</Title>
           </Group>
           <Button
-            leftIcon={<IconPlus size={16} />}
+            leftSection={<IconPlus size={16} />}
             onClick={onCreateNew}
+            size="sm"
           >
             New Environment
           </Button>
         </Group>
 
-        <Grid>
-          {environments.map((environment) => (
-            <Grid.Col key={environment.id} span={4}>
-              <Card shadow="sm" padding="lg" withBorder>
-                <Card.Section>
-                  <Group position="apart" p="md">
-                    <Menu position="bottom-end">
-                      <Menu.Target>
-                        <ActionIcon>
-                          <IconDots size={16} />
-                        </ActionIcon>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        <Menu.Item 
-                          icon={<IconPencil size={14} />}
-                          onClick={() => handleEditEnvironment(environment)}
-                        >
-                          Edit
-                        </Menu.Item>
-                        <Menu.Item 
-                          color="red" 
-                          icon={<IconTrash size={14} />}
-                          onClick={() => handleDeleteEnvironment(environment.id)}
-                        >
-                          Delete
-                        </Menu.Item>
-                      </Menu.Dropdown>
-                    </Menu>
-                  </Group>
-                </Card.Section>
+        {error && (
+          <Paper p="md" bg="red.1" c="red.8">
+            <Text>{error}</Text>
+          </Paper>
+        )}
 
-                <Stack spacing="xs">
-                  <Text size="lg" weight={500}>
-                    {environment.name}
-                  </Text>
-                  <Text size="sm" color="dimmed">
-                    {environment.stocks.length} stocks selected
-                  </Text>
-                  <Text size="sm" color="dimmed">
-                    Created: {environment.date}
-                  </Text>
-                  <Badge variant="light" color="blue">
-                    {environment.stocks.join(', ')}
-                  </Badge>
-                </Stack>
-              </Card>
-            </Grid.Col>
-          ))}
-        </Grid>
+        <div style={{ position: 'relative', minHeight: loading ? '200px' : 'auto' }}>
+          <LoadingOverlay visible={loading} overlayBlur={2} />
+          
+          <Grid>
+            {environments.map((environment) => (
+              <Grid.Col key={environment.name} span={4}>
+                <Card shadow="sm" padding="lg" withBorder>
+                  <Card.Section>
+                    <Group position="apart" p="md">
+                      <ThemeIcon size="lg" color="blue" variant="light">
+                        <IconPencil size={20} />
+                      </ThemeIcon>
+                      <ThemeIcon 
+                        size="lg" 
+                        color="red" 
+                        variant="light"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleDeleteEnvironment(environment.name)}
+                      >
+                        <IconTrash size={20} />
+                      </ThemeIcon>
+                    </Group>
+                  </Card.Section>
+
+                  <Stack spacing="xs">
+                    <Text size="lg" weight={500}>
+                      {environment.name}
+                    </Text>
+                    <Text size="sm" color="dimmed">
+                      {environment.stocks.length} stocks selected
+                    </Text>
+                    <Badge variant="light" color="blue">
+                      {environment.stocks.join(', ')}
+                    </Badge>
+
+                    {environment.simulations && environment.simulations.length > 0 && (
+                      <Accordion variant="contained" mt="sm">
+                        <Accordion.Item value="simulations">
+                          <Accordion.Control>
+                            <Group>
+                              <IconCalendar size={16} />
+                              <Text size="sm">
+                                {environment.simulations.length} Simulations
+                              </Text>
+                            </Group>
+                          </Accordion.Control>
+                          <Accordion.Panel>
+                            <Stack spacing="xs">
+                              {environment.simulations.map((sim) => (
+                                <Card key={sim.name} withBorder size="sm" padding="xs">
+                                  <Text size="sm" weight={500}>{sim.name}</Text>
+                                  <Text size="xs" color="dimmed">
+                                    {new Date(sim.start_date).toLocaleDateString()} - {new Date(sim.end_date).toLocaleDateString()}
+                                  </Text>
+                                  <Text size="xs" color="dimmed">
+                                    {sim.strategies.length} strategies
+                                  </Text>
+                                </Card>
+                              ))}
+                            </Stack>
+                          </Accordion.Panel>
+                        </Accordion.Item>
+                      </Accordion>
+                    )}
+                  </Stack>
+                </Card>
+              </Grid.Col>
+            ))}
+          </Grid>
+        </div>
       </Stack>
 
       <Modal
-        opened={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        opened={editingEnv !== null}
+        onClose={() => setEditingEnv(null)}
         title="Edit Environment"
-        size="xl"
       >
-        <Stack spacing="md">
-          <TextInput
-            label="Environment Name"
-            value={editingEnvironment?.name || ''}
-            onChange={(e) => setEditingEnvironment({
-              ...editingEnvironment,
-              name: e.target.value
-            })}
-          />
-
-          <TextInput
-            placeholder="Search by ticker or company name"
-            icon={<IconSearch size={16} />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
-          <Badge size="lg" variant="filled" color={selectedStocks.length === 10 ? 'green' : 'blue'}>
-            {selectedStocks.length}/10 Stocks Selected
-          </Badge>
-
-          <Divider />
-
-          <ScrollArea h={400}>
-            {sectors.map(sector => (
-              <Stack key={sector} spacing="xs" mb="xl">
-                <Title order={3}>{sector}</Title>
-                <Table>
-                  <thead>
-                    <tr>
-                      <th style={{ width: 50 }}></th>
-                      <th>Ticker</th>
-                      <th>Company Name</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(searchQuery 
-                      ? sp500Stocks.filter(stock => 
-                          stock.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          stock.name.toLowerCase().includes(searchQuery.toLowerCase())
-                        )
-                      : sp500Stocks)
-                      .filter(stock => stock.sector === sector)
-                      .map((stock) => (
-                        <tr key={stock.ticker}>
-                          <td>
-                            <Checkbox
-                              checked={selectedStocks.includes(stock.ticker)}
-                              onChange={() => handleStockSelect(stock.ticker)}
-                              disabled={!selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10}
-                            />
-                          </td>
-                          <td>{stock.ticker}</td>
-                          <td>{stock.name}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </Table>
-              </Stack>
-            ))}
-          </ScrollArea>
-
-          <Group position="right">
-            <Button variant="light" onClick={() => setShowEditModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit}>
-              Save Changes
-            </Button>
-          </Group>
-        </Stack>
+        <div style={{ position: 'relative' }}>
+          <LoadingOverlay visible={loading} overlayBlur={2} />
+          <Stack spacing="md">
+            <TextInput
+              label="Environment Name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              error={error}
+              required
+            />
+            <TextInput
+              label="Stock Symbols"
+              value={editStocks}
+              onChange={(e) => setEditStocks(e.target.value)}
+              description="Enter comma-separated stock symbols (e.g., AAPL, GOOGL, MSFT)"
+              required
+            />
+            <Group position="right">
+              <Button variant="light" onClick={() => setEditingEnv(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEditSubmit}
+                disabled={!editName.trim() || loading}
+                leftIcon={<IconCheck size={16} />}
+              >
+                Save Changes
+              </Button>
+            </Group>
+          </Stack>
+        </div>
       </Modal>
     </Container>
   );

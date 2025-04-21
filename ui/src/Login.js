@@ -1,4 +1,4 @@
-import { Text, Anchor,Container, Title, Paper, TextInput, PasswordInput, Button, Center } from '@mantine/core';
+import { Text, Anchor,Container, Title, Paper, TextInput, PasswordInput, Button, Center, Group, Stack } from '@mantine/core';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,10 +16,11 @@ function Login() {
     setPassword(event.target.value);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // TODO: Implement login logic using username and password
+    console.log('Login attempt with:', { username, password });
   };
-
 
   return (
     <Center
@@ -35,31 +36,38 @@ function Login() {
       
       {/* Paper component provides a card-like form container */}
       <Paper radius="md" p="xl" withBorder>
-        <form>
-          {/* Username field */}
-          <TextInput 
-            label="Username" 
-            placeholder="Enter your username" 
-            required 
-            size="md"
-            style={{ marginBottom: 20 }}
-            onChange={handleUsernameChange}
-          />
-          
-          {/* Password field */}
-          <PasswordInput 
-            label="Password" 
-            placeholder="Enter your password" 
-            required 
-            size="md" 
-            style={{ marginBottom: 20 }}
-            onChange={handlePasswordChange}
-          />
-          
-          {/* Login button */}
-          <Button color='yellow' fullWidth size="md" type="submit" onClick={handleSubmit}>
-            Login
-          </Button>
+        <form onSubmit={handleSubmit}>
+          <Stack>
+            {/* Username field */}
+            <TextInput 
+              label="Username" 
+              placeholder="Enter your username" 
+              required 
+              size="md"
+              style={{ marginBottom: 20 }}
+              value={username}
+              onChange={handleUsernameChange}
+            />
+            
+            {/* Password field */}
+            <TextInput 
+              label="Password" 
+              placeholder="Enter your password" 
+              required 
+              size="md" 
+              style={{ marginBottom: 20 }}
+              type="password"
+              value={password}
+              onChange={handlePasswordChange}
+            />
+            
+            {/* Login button */}
+            <Group position="right">
+              <Button color='yellow' fullWidth size="md" type="submit">
+                Login
+              </Button>
+            </Group>
+          </Stack>
         </form>
       </Paper>
       <Center style={{ marginBottom: 10 }}>

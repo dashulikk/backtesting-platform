@@ -1,226 +1,187 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Container,
   Title,
-  Text,
   Button,
   Group,
   Stack,
+  TextInput,
+  ActionIcon,
+  Text,
   Paper,
   Checkbox,
-  TextInput,
   ScrollArea,
-  ActionIcon,
-  Badge,
-  Alert,
-  Divider,
   Table,
-  Modal
+  LoadingOverlay,
+  Alert
 } from '@mantine/core';
-import {
-  IconArrowLeft,
-  IconSearch,
-  IconAlertCircle,
-  IconCheck
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconSearch, IconAlertCircle } from '@tabler/icons-react';
+import { api } from '../services/api';
+import { sp500Stocks } from '../data/sp500stocks';
 
-function CreateEnvironmentPage({ onBack, onEnvironmentCreated }) {
+function CreateEnvironmentPage({ onBack }) {
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStocks, setSelectedStocks] = useState([]);
-  const [filteredStocks, setFilteredStocks] = useState([]);
   const [environmentName, setEnvironmentName] = useState('');
-  const [showNameModal, setShowNameModal] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Mock SP500 stocks data - this should be replaced with actual data
-  const sp500Stocks = [
-    // Technology
-    { ticker: 'AAPL', name: 'Apple Inc.', sector: 'Technology' },
-    { ticker: 'MSFT', name: 'Microsoft Corporation', sector: 'Technology' },
-    { ticker: 'AMZN', name: 'Amazon.com Inc.', sector: 'Technology' },
-    { ticker: 'GOOGL', name: 'Alphabet Inc.', sector: 'Technology' },
-    { ticker: 'META', name: 'Meta Platforms Inc.', sector: 'Technology' },
-    { ticker: 'NVDA', name: 'NVIDIA Corporation', sector: 'Technology' },
-    { ticker: 'TSLA', name: 'Tesla Inc.', sector: 'Technology' },
-    { ticker: 'ADBE', name: 'Adobe Inc.', sector: 'Technology' },
-    { ticker: 'CRM', name: 'Salesforce Inc.', sector: 'Technology' },
-    { ticker: 'INTC', name: 'Intel Corporation', sector: 'Technology' },
-    // ... add more technology stocks
-
-    // Healthcare
-    { ticker: 'JNJ', name: 'Johnson & Johnson', sector: 'Healthcare' },
-    { ticker: 'PFE', name: 'Pfizer Inc.', sector: 'Healthcare' },
-    { ticker: 'ABBV', name: 'AbbVie Inc.', sector: 'Healthcare' },
-    { ticker: 'MRK', name: 'Merck & Co.', sector: 'Healthcare' },
-    { ticker: 'ABT', name: 'Abbott Laboratories', sector: 'Healthcare' },
-    // ... add more healthcare stocks
-
-    // Financials
-    { ticker: 'BRK.B', name: 'Berkshire Hathaway Inc.', sector: 'Financials' },
-    { ticker: 'JPM', name: 'JPMorgan Chase & Co.', sector: 'Financials' },
-    { ticker: 'BAC', name: 'Bank of America Corp.', sector: 'Financials' },
-    { ticker: 'WFC', name: 'Wells Fargo & Company', sector: 'Financials' },
-    { ticker: 'GS', name: 'Goldman Sachs Group Inc.', sector: 'Financials' },
-    // ... add more financial stocks
-
-    // Consumer Discretionary
-    { ticker: 'WMT', name: 'Walmart Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'HD', name: 'Home Depot Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'MCD', name: 'McDonald\'s Corporation', sector: 'Consumer Discretionary' },
-    { ticker: 'NKE', name: 'Nike Inc.', sector: 'Consumer Discretionary' },
-    { ticker: 'SBUX', name: 'Starbucks Corporation', sector: 'Consumer Discretionary' },
-    // ... add more consumer stocks
-
-    // ... add more sectors and stocks
-  ];
-
-  useEffect(() => {
-    // Filter stocks based on search query
-    const filtered = sp500Stocks.filter(stock => 
-      stock.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      stock.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter stocks based on search query
+  const filteredStocks = useMemo(() => {
+    if (!searchQuery) return sp500Stocks;
+    const query = searchQuery.toLowerCase();
+    return sp500Stocks.filter(stock => 
+      stock.ticker.toLowerCase().includes(query) ||
+      stock.name.toLowerCase().includes(query)
     );
-    setFilteredStocks(filtered);
   }, [searchQuery]);
 
+  // Group stocks by sector
+  const sectors = useMemo(() => {
+    return [...new Set(sp500Stocks.map(stock => stock.sector))];
+  }, []);
+
   const handleStockSelect = (ticker) => {
-    if (selectedStocks.includes(ticker)) {
-      setSelectedStocks(selectedStocks.filter(t => t !== ticker));
-    } else {
-      if (selectedStocks.length < 10) {
-        setSelectedStocks([...selectedStocks, ticker]);
+    setSelectedStocks(prev => {
+      if (prev.includes(ticker)) {
+        return prev.filter(t => t !== ticker);
       }
+      if (prev.length < 10) {
+        return [...prev, ticker];
+      }
+      return prev;
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!environmentName.trim()) {
+      setError('Please enter an environment name');
+      return;
+    }
+
+    if (selectedStocks.length === 0) {
+      setError('Please select at least one stock');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      await api.createEnvironment({
+        name: environmentName.trim(),
+        stocks: selectedStocks
+      });
+
+      onBack(); // Return to environments list
+    } catch (err) {
+      console.error('Error creating environment:', err);
+      setError(err.message || 'Failed to create environment');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleCreateEnvironment = () => {
-    setShowNameModal(true);
-  };
-
-  const handleSaveEnvironment = () => {
-    if (environmentName.trim()) {
-      const newEnvironment = {
-        id: Date.now(), // Generate a unique ID
-        name: environmentName,
-        stocks: selectedStocks,
-        date: new Date().toISOString().split('T')[0]
-      };
-      onEnvironmentCreated(newEnvironment);
-      onBack(); // Go back to environments page
-    }
-  };
-
-  const sectors = [...new Set(sp500Stocks.map(stock => stock.sector))];
 
   return (
     <Container size="xl" py="xl">
-      <Stack spacing="xl">
-        <Group position="apart">
-          <Group>
-            <ActionIcon onClick={onBack} size="lg" variant="subtle">
-              <IconArrowLeft size={20} />
-            </ActionIcon>
-            <Title order={2}>Create Environment</Title>
+      <form onSubmit={handleSubmit}>
+        <Stack spacing="xl">
+          <Group position="apart">
+            <Group>
+              <ActionIcon onClick={onBack} size="lg" variant="subtle">
+                <IconArrowLeft size={20} />
+              </ActionIcon>
+              <Title order={2}>Create Environment</Title>
+            </Group>
           </Group>
-          <Badge size="lg" variant="filled" color={selectedStocks.length === 10 ? 'green' : 'blue'}>
-            {selectedStocks.length}/10 Stocks Selected
-          </Badge>
-        </Group>
 
-        <Paper shadow="sm" p="md" withBorder>
-          <Stack spacing="md">
-            <TextInput
-              placeholder="Search by ticker or company name"
-              icon={<IconSearch size={16} />}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-
-            {selectedStocks.length === 10 && (
-              <Alert icon={<IconAlertCircle size={16} />} color="yellow">
-                You have reached the maximum number of stocks (10). Unselect some stocks to add different ones.
-              </Alert>
-            )}
-
-            <Divider />
-
-            <ScrollArea h={600}>
-              {sectors.map(sector => (
-                <Stack key={sector} spacing="xs" mb="xl">
-                  <Title order={3}>{sector}</Title>
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th style={{ width: 50 }}></th>
-                        <th>Ticker</th>
-                        <th>Company Name</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(searchQuery ? filteredStocks : sp500Stocks)
-                        .filter(stock => stock.sector === sector)
-                        .map((stock) => (
-                          <tr key={stock.ticker}>
-                            <td>
-                              <Checkbox
-                                checked={selectedStocks.includes(stock.ticker)}
-                                onChange={() => handleStockSelect(stock.ticker)}
-                                disabled={!selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10}
-                              />
-                            </td>
-                            <td>{stock.ticker}</td>
-                            <td>{stock.name}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </Table>
-                </Stack>
-              ))}
-            </ScrollArea>
-          </Stack>
-        </Paper>
-
-        <Group position="right">
-          <Button
-            variant="light"
-            onClick={onBack}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreateEnvironment}
-            disabled={selectedStocks.length === 0}
-          >
-            Create Environment
-          </Button>
-        </Group>
-      </Stack>
-
-      <Modal
-        opened={showNameModal}
-        onClose={() => setShowNameModal(false)}
-        title="Name Your Environment"
-      >
-        <Stack spacing="md">
           <TextInput
+            required
             label="Environment Name"
-            placeholder="Enter a name for your environment"
             value={environmentName}
             onChange={(e) => setEnvironmentName(e.target.value)}
+            error={error && !environmentName.trim() ? 'Name is required' : null}
           />
+
+          <Paper shadow="sm" p="md" withBorder>
+            <Stack spacing="md">
+              <LoadingOverlay visible={loading} />
+              
+              <TextInput
+                placeholder="Search by ticker or company name"
+                icon={<IconSearch size={16} />}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+
+              {selectedStocks.length > 0 && (
+                <Group spacing="xs">
+                  <Text size="sm" weight={500}>Selected stocks:</Text>
+                  <Text size="sm" color="dimmed">
+                    {selectedStocks.join(', ')} ({selectedStocks.length}/10)
+                  </Text>
+                </Group>
+              )}
+
+              {selectedStocks.length === 10 && (
+                <Alert icon={<IconAlertCircle size={16} />} color="yellow">
+                  You have reached the maximum number of stocks (10). Unselect some stocks to add different ones.
+                </Alert>
+              )}
+
+              <ScrollArea h={400}>
+                {sectors.map(sector => {
+                  const sectorStocks = filteredStocks.filter(stock => stock.sector === sector);
+                  if (sectorStocks.length === 0) return null;
+
+                  return (
+                    <Stack key={sector} spacing="xs" mb="xl">
+                      <Title order={3}>{sector}</Title>
+                      <Table>
+                        <thead>
+                          <tr>
+                            <th style={{ width: 50 }}></th>
+                            <th>Ticker</th>
+                            <th>Company Name</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sectorStocks.map((stock) => (
+                            <tr key={stock.ticker}>
+                              <td>
+                                <Checkbox
+                                  checked={selectedStocks.includes(stock.ticker)}
+                                  onChange={() => handleStockSelect(stock.ticker)}
+                                  disabled={!selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10}
+                                />
+                              </td>
+                              <td>{stock.ticker}</td>
+                              <td>{stock.name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </Stack>
+                  );
+                })}
+              </ScrollArea>
+            </Stack>
+          </Paper>
+
           <Group position="right">
-            <Button variant="light" onClick={() => setShowNameModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveEnvironment}
-              disabled={!environmentName.trim()}
-              leftIcon={<IconCheck size={16} />}
+            <Button variant="subtle" onClick={onBack}>Cancel</Button>
+            <Button 
+              type="submit" 
+              loading={loading}
+              disabled={!environmentName.trim() || selectedStocks.length === 0}
             >
-              Save Environment
+              Create Environment
             </Button>
           </Group>
         </Stack>
-      </Modal>
+      </form>
     </Container>
   );
 }

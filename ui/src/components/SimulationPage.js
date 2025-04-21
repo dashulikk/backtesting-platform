@@ -19,10 +19,11 @@ import {
   Grid,
   ThemeIcon,
   Alert,
-  Textarea
+  Textarea,
+  LoadingOverlay
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { IconCalendar, IconPlus, IconTrash, IconPlayerPlay, IconEdit, IconChartBar, IconArrowLeft, IconDeviceFloppy, IconDots, IconPencil, IconSearch, IconAlertCircle, IconFolderPlus } from '@tabler/icons-react';
+import { IconCalendar, IconPlus, IconTrash, IconPlayerPlay, IconEdit, IconChartBar, IconArrowLeft, IconDeviceFloppy, IconDots, IconPencil, IconSearch, IconAlertCircle, IconFolderPlus, IconChartLine } from '@tabler/icons-react';
 import StrategyModal from './StrategyModal';
 
 function SimulationPage({ onBack, environments = [], onUpdateEnvironments }) {

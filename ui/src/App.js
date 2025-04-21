@@ -1,6 +1,7 @@
 import Login from "./Login"
 import Signup from "./Signup";
 import Home from "./Home";
+import CreateEnvironmentPage from "./components/CreateEnvironmentPage";
 
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
@@ -10,6 +11,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home/>} />
+        <Route path="/create-environment" element={<CreateEnvironmentPage />} />
         <Route
           path="/signup"
           element={

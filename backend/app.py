@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Response, status, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Union, Literal, Dict
 from datetime import date, datetime, timedelta
@@ -9,6 +10,15 @@ import random
 from jose import jwt, JWTError
 
 app = FastAPI()
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3001"],  # Allow both default React ports
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Secret key for JWT token signing (in production, use a secure environment variable)
 SECRET_KEY = "your-secret-key-keep-it-secret"
