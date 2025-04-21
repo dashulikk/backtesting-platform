@@ -31,6 +31,7 @@ import {
   IconPlayerStop
 } from '@tabler/icons-react';
 import StrategyModal from './StrategyModal';
+import EditStrategyModal from './EditStrategyModal';
 
 const StrategiesPage = ({ onBack, onNavigate }) => {
   const [environments, setEnvironments] = useState([]);
@@ -103,7 +104,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
     }
   };
 
-  const handleEditStrategy = async (strategy) => {
+  const handleEditStrategy = async (data) => {
     if (!selectedEnvironment || !editingStrategy) return;
     
     try {
@@ -128,13 +129,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
           'Authorization': 'Bearer test-token-for-user1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          strategy: {
-            name: editingStrategy.name,
-            type: editingStrategy.type,
-            ...strategy.parameters
-          }
-        }),
+        body: JSON.stringify(data),
       });
       
       if (!createResponse.ok) {
@@ -445,12 +440,11 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
         onSubmit={handleAddStrategy}
       />
 
-      <StrategyModal
+      <EditStrategyModal
         opened={!!editingStrategy}
         onClose={() => setEditingStrategy(null)}
         onSubmit={handleEditStrategy}
-        initialValues={editingStrategy}
-        isEditing={true}
+        strategy={editingStrategy}
       />
 
       <Modal

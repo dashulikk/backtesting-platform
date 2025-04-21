@@ -1,31 +1,34 @@
 import { useState, useEffect } from 'react';
 import {
   Modal,
-  TextInput,
-  Select,
   NumberInput,
   Button,
   Stack,
   Group,
   Text,
-  Divider
 } from '@mantine/core';
 
-const StrategyModal = ({ opened, onClose, onSubmit }) => {
-  const [name, setName] = useState('');
-  const [type, setType] = useState('');
+const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
   const [parameters, setParameters] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Reset form when modal opens/closes
   useEffect(() => {
-    if (opened) {
-      setName('');
-      setType('');
-      setParameters({});
+    if (opened && strategy) {
+      // Extract parameters based on strategy type
+      if (strategy.type === 'ExampleStrategy') {
+        setParameters({
+          days: strategy.days || 0,
+          n: strategy.n || 0
+        });
+      } else if (strategy.type === 'ExampleStrategy2') {
+        setParameters({
+          a: strategy.a || 0,
+          b: strategy.b || 0
+        });
+      }
     }
-  }, [opened]);
+  }, [opened, strategy]);
 
   const handleSubmit = async () => {
     try {
@@ -33,20 +36,25 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
       setError(null);
 
       // Validate required fields based on strategy type
-      if (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) {
+      if (strategy.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) {
         throw new Error('Days and N are required for ExampleStrategy');
       }
-      if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
+      if (strategy.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
         throw new Error('Parameters A and B are required for ExampleStrategy2');
       }
 
-      await onSubmit({
-        name,
-        type,
-        parameters: type === 'ExampleStrategy'
-          ? { days: parameters.days, n: parameters.n }
-          : { a: parameters.a, b: parameters.b }
-      });
+      // Match the exact API format
+      const strategyData = {
+        strategy: {
+          name: strategy.name,
+          type: strategy.type,
+          ...(strategy.type === 'ExampleStrategy'
+            ? { days: Number(parameters.days), n: Number(parameters.n) }
+            : { a: Number(parameters.a), b: Number(parameters.b) })
+        }
+      };
+
+      await onSubmit(strategyData);
       onClose();
     } catch (err) {
       setError(err.message);
@@ -56,7 +64,7 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
   };
 
   const renderParameterInputs = () => {
-    switch (type) {
+    switch (strategy?.type) {
       case 'ExampleStrategy':
         return (
           <Stack spacing="md">
@@ -102,35 +110,21 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Add Strategy"
+      title="Edit Strategy"
       size="md"
     >
       <Stack spacing="md">
-        <TextInput
-          label="Strategy Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
+        <Group position="apart">
+          <Text weight={500}>Strategy Name:</Text>
+          <Text>{strategy?.name}</Text>
+        </Group>
+        <Group position="apart">
+          <Text weight={500}>Strategy Type:</Text>
+          <Text>{strategy?.type}</Text>
+        </Group>
 
-        <Select
-          label="Strategy Type"
-          value={type}
-          onChange={setType}
-          data={[
-            { value: 'ExampleStrategy', label: 'Example Strategy' },
-            { value: 'ExampleStrategy2', label: 'Example Strategy 2' }
-          ]}
-          required
-        />
-
-        {type && (
-          <>
-            <Divider />
-            <Text weight={500}>Parameters</Text>
-            {renderParameterInputs()}
-          </>
-        )}
+        <Text weight={500} mt="md">Parameters</Text>
+        {renderParameterInputs()}
 
         {error && (
           <Text color="red" size="sm">
@@ -145,10 +139,12 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           <Button 
             onClick={handleSubmit}
             loading={loading}
-            disabled={!name || !type || (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b))}
+            disabled={
+              (strategy?.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
+              (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b))
+            }
           >
-            Add Strategy
+            Save Changes
           </Button>
         </Group>
       </Stack>
@@ -156,4 +152,4 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
   );
 };
 
-export default StrategyModal; 
+export default EditStrategyModal; 
