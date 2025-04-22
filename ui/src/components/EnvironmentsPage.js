@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Container,
   Title,
@@ -28,6 +28,7 @@ import {
   IconChartLine,
   IconArrowLeft
 } from '@tabler/icons-react';
+import { sp500Stocks } from '../data/sp500stocks';
 
 const EnvironmentsPage = ({ onBack, onNavigate }) => {
   const [environments, setEnvironments] = useState([]);
@@ -40,9 +41,13 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
   const [editStocks, setEditStocks] = useState([]);
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
-  const [availableStocks, setAvailableStocks] = useState([
-    'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT'
-  ]);
+  const availableStocks = useMemo(() => 
+    sp500Stocks.map(stock => ({ 
+      value: stock.ticker, 
+      label: `${stock.ticker} - ${stock.name}` 
+    })),
+    []
+  );
 
   useEffect(() => {
     fetchEnvironments();
@@ -305,12 +310,32 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
             label="Stocks"
             value={editStocks}
             onChange={setEditStocks}
-            data={availableStocks.map(stock => ({ value: stock, label: stock }))}
+            data={availableStocks}
             searchable
-            creatable
-            getCreateLabel={(query) => `+ Add ${query}`}
-            onCreate={(query) => query}
-            required
+            maxSelectedValues={10}
+            placeholder="Select up to 10 stocks"
+            nothingFound="No stocks found"
+            maxDropdownHeight={400}
+            styles={{
+              input: {
+                backgroundColor: 'var(--mantine-color-dark-6)',
+                borderColor: 'var(--mantine-color-dark-4)',
+              },
+              dropdown: {
+                backgroundColor: 'var(--mantine-color-dark-6)',
+              },
+              item: {
+                '&[data-selected]': {
+                  backgroundColor: 'var(--mantine-color-blue-7)',
+                  '&:hover': {
+                    backgroundColor: 'var(--mantine-color-blue-8)',
+                  },
+                },
+                '&[data-hovered]': {
+                  backgroundColor: 'var(--mantine-color-dark-5)',
+                },
+              },
+            }}
           />
           <TextInput
             label="Start Date"

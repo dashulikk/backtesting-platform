@@ -33,8 +33,8 @@ function CreateEnvironmentPage({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStocks, setSelectedStocks] = useState([]);
   const [environmentName, setEnvironmentName] = useState('');
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [error, setError] = useState(null);
   const [expandedSectors, setExpandedSectors] = useState({});
 
@@ -65,12 +65,9 @@ function CreateEnvironmentPage({ onBack }) {
     });
   };
 
-  const formatDateForAPI = (date) => {
-    if (!date) return null;
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const formatDateForAPI = (dateString) => {
+    if (!dateString) return null;
+    return dateString; // Date input already returns YYYY-MM-DD format
   };
 
   const handleSubmit = async (e) => {
@@ -211,60 +208,26 @@ function CreateEnvironmentPage({ onBack }) {
                   />
 
                   <Stack spacing="xs">
-                    <DatePickerInput
+                    <TextInput
                       label={<Text c="gray.3" size="sm" weight={500}>Start Date</Text>}
-                      placeholder="Pick start date"
+                      type="date"
                       value={startDate}
-                      onChange={setStartDate}
-                      icon={<IconCalendar size={16} />}
+                      onChange={(e) => setStartDate(e.target.value)}
                       required
                       size="sm"
                       error={error && !startDate ? 'Required' : null}
-                      valueFormat="YYYY-MM-DD"
-                      clearable
-                      maxDate={endDate || new Date(2025, 11, 31)}
-                      minDate={new Date(2000, 0, 1)}
-                      firstDayOfWeek={1}
-                      weekendDays={[0, 6]}
-                      styles={datePickerStyles}
-                      popoverProps={{
-                        shadow: "md",
-                        styles: {
-                          dropdown: {
-                            backgroundColor: 'var(--mantine-color-dark-7)',
-                            borderColor: 'var(--mantine-color-dark-4)',
-                            border: '1px solid'
-                          }
-                        }
-                      }}
+                      styles={inputStyles}
                     />
 
-                    <DatePickerInput
+                    <TextInput
                       label={<Text c="gray.3" size="sm" weight={500}>End Date</Text>}
-                      placeholder="Pick end date"
+                      type="date"
                       value={endDate}
-                      onChange={setEndDate}
-                      icon={<IconCalendar size={16} />}
+                      onChange={(e) => setEndDate(e.target.value)}
                       required
                       size="sm"
                       error={error && !endDate ? 'Required' : null}
-                      valueFormat="YYYY-MM-DD"
-                      clearable
-                      minDate={startDate || new Date(2000, 0, 1)}
-                      maxDate={new Date(2025, 11, 31)}
-                      firstDayOfWeek={1}
-                      weekendDays={[0, 6]}
-                      styles={datePickerStyles}
-                      popoverProps={{
-                        shadow: "md",
-                        styles: {
-                          dropdown: {
-                            backgroundColor: 'var(--mantine-color-dark-7)',
-                            borderColor: 'var(--mantine-color-dark-4)',
-                            border: '1px solid'
-                          }
-                        }
-                      }}
+                      styles={inputStyles}
                     />
                   </Stack>
 
