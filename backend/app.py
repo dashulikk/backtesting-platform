@@ -8,6 +8,12 @@ from abc import ABC
 from enum import Enum
 import random
 from jose import jwt, JWTError
+from pymongo import MongoClient
+from bson import ObjectId
+
+# Initialize MongoDB client
+client = MongoClient('mongodb://localhost:27017/')
+db = client['backtesting']
 
 app = FastAPI()
 
@@ -142,40 +148,18 @@ class TradeData(BaseModel):
 class BacktestResponse(BaseModel):
     status: str = "ok"
 
-# In-memory storage (replace with database in production)
-environments = {}
-
-# Dummy data
-environments["user1"] = {
-    "test1": Environment(
-        name="test1",
-        stocks=["AAPL", "GOOGL", "MSFT", "AMZN"],
-        start_date=date(2023, 1, 1),
-        end_date=date(2023, 12, 31),
-        strategies=[
-            ExampleStrategy(name="momentum_1", type="ExampleStrategy", days=20, n=5),
-            ExampleStrategy2(name="mean_rev_2", type="ExampleStrategy2", a=0.3, b=1.5)
-        ]
-    ),
-    "test2": Environment(
-        name="test2",
-        stocks=["TSLA", "META", "NFLX", "NVDA"],
-        start_date=date(2023, 1, 1),
-        end_date=date(2023, 12, 31),
-        strategies=[
-            ExampleStrategy(name="momentum_3", type="ExampleStrategy", days=30, n=7),
-            ExampleStrategy2(name="mean_rev_4", type="ExampleStrategy2", a=0.4, b=1.8)
-        ]
-    )
-}
+# Helper function to convert MongoDB ObjectId to string
+def convert_objectid(item):
+    if isinstance(item, dict) and '_id' in item:
+        item['_id'] = str(item['_id'])
+    return item
 
 @app.get("/envs", response_model=List[Environment])
 async def get_environments(current_user: User = Depends(get_current_user)):
     """Get all environments for the authenticated user."""
     user_id = current_user.username
-    if user_id not in environments:
-        return []
-    return list(environments[user_id].values())
+    envs = list(db.environments.find({"user_id": user_id}))
+    return [convert_objectid(env) for env in envs]
 
 @app.get("/{env_name}", response_model=Environment)
 async def get_environment(
@@ -194,14 +178,10 @@ async def get_environment(
         - strategies: List[Strategy] with all strategy fields
     """
     user_id = current_user.username
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    env = environments[user_id].get(env_name)
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
-    
-    return env
+    return convert_objectid(env)
 
 @app.get("/{env_name}/returns", response_model=Optional[List[ReturnsData]])
 async def get_environment_returns(
@@ -210,31 +190,15 @@ async def get_environment_returns(
 ):
     """Get returns data for the specified environment."""
     user_id = current_user.username
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    env = environments[user_id].get(env_name)
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    # Return None for test2
-    if env_name == "test2":
+    returns = db.returns.find_one({"environment_id": str(env['_id'])})
+    if not returns:
         return None
     
-    # Generate dummy returns data
-    returns_data = []
-    current_date = env.start_date
-    end_date = env.end_date
-    
-    while current_date <= end_date:
-        daily_return = random.uniform(-2.0, 2.0)
-        returns_data.append(ReturnsData(
-            date=current_date,
-            returns=daily_return
-        ))
-        current_date += timedelta(days=1)
-    
-    return returns_data
+    return returns.get('data', [])
 
 @app.get("/{env_name}/portfolio", response_model=Optional[List[PortfolioData]])
 async def get_environment_portfolio(
@@ -243,39 +207,15 @@ async def get_environment_portfolio(
 ):
     """Get portfolio data for the specified environment."""
     user_id = current_user.username
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    env = environments[user_id].get(env_name)
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    # Return None for test2
-    if env_name == "test2":
+    portfolio = db.portfolio.find_one({"environment_id": str(env['_id'])})
+    if not portfolio:
         return None
     
-    portfolio_data = []
-    current_date = env.start_date
-    end_date = env.end_date
-    
-    positions = {stock: random.uniform(-100, 100) for stock in env.stocks}
-    
-    while current_date <= end_date:
-        for stock in positions:
-            change = random.uniform(-5, 5)
-            positions[stock] += change
-            positions[stock] = max(min(positions[stock], 200), -200)
-        
-        positions_copy = positions.copy()
-        positions_copy.pop(random.choice(list(positions_copy.keys())))
-        
-        portfolio_data.append(PortfolioData(
-            date=current_date,
-            positions=positions_copy
-        ))
-        current_date += timedelta(days=1)
-    
-    return portfolio_data
+    return portfolio.get('data', [])
 
 @app.get("/{env_name}/trades", response_model=Optional[List[TradeData]])
 async def get_environment_trades(
@@ -284,54 +224,106 @@ async def get_environment_trades(
 ):
     """Get trades data for the specified environment."""
     user_id = current_user.username
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    env = environments[user_id].get(env_name)
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    # Return None for test2
-    if env_name == "test2":
+    trades = db.trades.find_one({"environment_id": str(env['_id'])})
+    if not trades:
         return None
     
-    trades_data = []
-    current_date = env.start_date
-    end_date = env.end_date
-    
-    while current_date <= end_date:
-        if random.random() < 0.2:
-            num_trades = random.randint(1, 3)
-            for _ in range(num_trades):
-                stock = random.choice(env.stocks)
-                cash = random.uniform(1000, 10000)
-                trade_type = random.choice([TradeType.LONG, TradeType.SHORT])
-                
-                trades_data.append(TradeData(
-                    date=current_date,
-                    stock=stock,
-                    cash=cash,
-                    type=trade_type
-                ))
-        
-        current_date += timedelta(days=1)
-    
-    trades_data.sort(key=lambda x: x.date)
-    return trades_data
+    return trades.get('data', [])
 
 @app.post("/{env_name}/backtest", status_code=status.HTTP_200_OK, response_class=Response)
 async def run_backtest(
     env_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Trigger a backtest for the specified environment."""
+    """Trigger a backtest for the specified environment and store results."""
     user_id = current_user.username
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    env = environments[user_id].get(env_name)
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
+    
+    # Convert ISO format dates back to date objects for processing
+    start_date = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
+    end_date = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
+    
+    # Generate dummy returns data
+    returns_data = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        daily_return = random.uniform(-2.0, 2.0)
+        returns_data.append({
+            "date": current_date.isoformat(),
+            "returns": daily_return / 100  # Convert to decimal
+        })
+        current_date += timedelta(days=1)
+    
+    # Generate dummy portfolio data
+    portfolio_data = []
+    current_date = start_date
+    positions = {stock: random.uniform(-100, 100) for stock in env['stocks']}
+    
+    while current_date <= end_date:
+        # Update positions with some random changes
+        for stock in positions:
+            change = random.uniform(-5, 5)
+            positions[stock] += change
+            positions[stock] = max(min(positions[stock], 200), -200)  # Keep within bounds
+        
+        # Create a copy of all positions (don't remove any)
+        portfolio_data.append({
+            "date": current_date.isoformat(),
+            "positions": positions.copy()  # Include all positions
+        })
+        current_date += timedelta(days=1)
+    
+    # Generate dummy trades data
+    trades_data = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        if random.random() < 0.2:
+            num_trades = random.randint(1, 3)
+            for _ in range(num_trades):
+                stock = random.choice(env['stocks'])
+                cash = random.uniform(1000, 10000)
+                trade_type = random.choice(["Long", "Short"])
+                
+                trades_data.append({
+                    "date": current_date.isoformat(),
+                    "stock": stock,
+                    "cash": cash,
+                    "type": trade_type
+                })
+        
+        current_date += timedelta(days=1)
+    
+    # Store the results in MongoDB
+    env_id = str(env['_id'])
+    
+    # Update or insert returns data
+    db.returns.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": returns_data}},
+        upsert=True
+    )
+    
+    # Update or insert portfolio data
+    db.portfolio.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": portfolio_data}},
+        upsert=True
+    )
+    
+    # Update or insert trades data
+    db.trades.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": trades_data}},
+        upsert=True
+    )
     
     return Response(status_code=status.HTTP_200_OK)
 
@@ -353,28 +345,26 @@ async def create_environment(
     """Create a new environment for the current user."""
     user_id = current_user.username
     
-    # Initialize user's environments if not exists
-    if user_id not in environments:
-        environments[user_id] = {}
-    
     # Check if environment with this name already exists
-    if request.name in environments[user_id]:
+    existing = db.environments.find_one({"user_id": user_id, "name": request.name})
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Environment with this name already exists"
         )
     
-    # Create new environment without strategies
-    new_env = Environment(
-        name=request.name,
-        stocks=request.stocks,
-        start_date=request.start_date,
-        end_date=request.end_date,
-        strategies=[]
-    )
+    # Create new environment with dates converted to ISO format strings
+    new_env = {
+        "name": request.name,
+        "user_id": user_id,
+        "stocks": request.stocks,
+        "start_date": request.start_date.isoformat(),
+        "end_date": request.end_date.isoformat(),
+        "strategies": []
+    }
     
-    # Save it
-    environments[user_id][request.name] = new_env
+    # Insert into MongoDB
+    db.environments.insert_one(new_env)
     
     return Response(status_code=status.HTTP_200_OK)
 
@@ -387,24 +377,23 @@ async def add_strategy(
     """Add a strategy to an environment."""
     user_id = current_user.username
     
-    # Check if user and environment exist
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    if env_name not in environments[user_id]:
+    # Find the environment
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
+    if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    env = environments[user_id][env_name]
-    
     # Check if strategy with this name already exists
-    if any(s.name == request.strategy.name for s in env.strategies):
+    if any(s["name"] == request.strategy.name for s in env["strategies"]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Strategy with this name already exists in this environment"
         )
     
     # Add the strategy
-    env.strategies.append(request.strategy)
+    db.environments.update_one(
+        {"_id": env["_id"]},
+        {"$push": {"strategies": request.strategy.dict()}}
+    )
     
     return Response(status_code=status.HTTP_200_OK)
 
@@ -417,25 +406,17 @@ async def delete_strategy(
     """Delete a strategy from an environment."""
     user_id = current_user.username
     
-    # Check if user and environment exist
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    if env_name not in environments[user_id]:
-        raise HTTPException(status_code=404, detail="Environment not found")
-    
-    env = environments[user_id][env_name]
-    
-    # Find and remove the strategy
-    strategy_index = next(
-        (i for i, strategy in enumerate(env.strategies) if strategy.name == strategy_name),
-        None
+    # Find and update the environment
+    result = db.environments.update_one(
+        {"user_id": user_id, "name": env_name},
+        {"$pull": {"strategies": {"name": strategy_name}}}
     )
     
-    if strategy_index is None:
-        raise HTTPException(status_code=404, detail="Strategy not found")
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Environment not found")
     
-    env.strategies.pop(strategy_index)
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Strategy not found")
     
     return Response(status_code=status.HTTP_200_OK)
 
@@ -444,16 +425,22 @@ async def delete_environment(
     env_name: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Delete an environment."""
+    """Delete an environment and its associated data."""
     user_id = current_user.username
     
-    if user_id not in environments:
-        raise HTTPException(status_code=404, detail="No environments found")
-    
-    if env_name not in environments[user_id]:
+    # Find the environment first to get its ID
+    env = db.environments.find_one({"user_id": user_id, "name": env_name})
+    if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
+    env_id = str(env['_id'])
+    
+    # Delete all associated data
+    db.returns.delete_one({"environment_id": env_id})
+    db.portfolio.delete_one({"environment_id": env_id})
+    db.trades.delete_one({"environment_id": env_id})
+    
     # Delete the environment
-    del environments[user_id][env_name]
+    db.environments.delete_one({"_id": env['_id']})
     
     return Response(status_code=status.HTTP_200_OK)
