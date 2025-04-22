@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Container, 
   Title, 
@@ -14,7 +14,8 @@ import {
   Center,
   Table,
   ScrollArea,
-  Grid
+  Grid,
+  Switch
 } from '@mantine/core';
 import { 
   IconArrowLeft, 
@@ -31,7 +32,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
+  Brush
 } from 'recharts';
 import { api } from '../services/api';
 
@@ -43,6 +45,7 @@ const BacktestingResultsPage = ({ onBack }) => {
   const [returns, setReturns] = useState(null);
   const [portfolio, setPortfolio] = useState(null);
   const [trades, setTrades] = useState(null);
+  const [visibleStocks, setVisibleStocks] = useState(new Set());
 
   // Fetch environments that have been backtested
   useEffect(() => {
@@ -86,6 +89,93 @@ const BacktestingResultsPage = ({ onBack }) => {
 
     fetchData();
   }, [selectedEnv]);
+
+  // Initialize visible stocks when environment is selected
+  useEffect(() => {
+    if (selectedEnv) {
+      setVisibleStocks(new Set(selectedEnv.stocks));
+    }
+  }, [selectedEnv]);
+
+  const handleLegendClick = (stock) => {
+    setVisibleStocks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(stock)) {
+        newSet.delete(stock);
+      } else {
+        newSet.add(stock);
+      }
+      return newSet;
+    });
+  };
+
+  // Preprocess data to create separate line segments for active positions
+  const processedData = useMemo(() => {
+    if (!portfolio || !selectedEnv) return [];
+    return portfolio.map((item, index) => {
+      const newItem = { ...item };
+      selectedEnv.stocks.forEach(stock => {
+        // Handle NaN and undefined values
+        const position = item.positions[stock] ?? 0;
+        if (isNaN(position)) {
+          newItem.positions[stock] = 0;
+        }
+        
+        // Add a flag to indicate if this is an active position
+        newItem[`${stock}_active`] = position !== 0;
+        
+        // Add a flag to indicate if this is the start or end of an active position
+        const prevPosition = index > 0 ? (portfolio[index - 1].positions[stock] ?? 0) : 0;
+        const nextPosition = index < portfolio.length - 1 ? (portfolio[index + 1].positions[stock] ?? 0) : 0;
+        
+        // Handle NaN in previous and next positions
+        const prevPos = isNaN(prevPosition) ? 0 : prevPosition;
+        const nextPos = isNaN(nextPosition) ? 0 : nextPosition;
+        
+        newItem[`${stock}_transition`] = (position === 0 && prevPos !== 0) || 
+                                        (position !== 0 && nextPos === 0);
+        
+        // Add trade information
+        newItem[`${stock}_trade`] = trades?.some(trade => 
+          trade.date === item.date && trade.stock === stock
+        );
+      });
+      return newItem;
+    });
+  }, [portfolio, selectedEnv, trades]);
+
+  // Calculate max position for each stock for normalization
+  const maxPositions = useMemo(() => {
+    if (!portfolio || !selectedEnv) return {};
+    const max = {};
+    selectedEnv.stocks.forEach(stock => {
+      const positions = portfolio.map(item => {
+        const pos = item.positions[stock] ?? 0;
+        return isNaN(pos) ? 0 : Math.abs(pos);
+      });
+      max[stock] = Math.max(...positions);
+    });
+    return max;
+  }, [portfolio, selectedEnv]);
+
+  // Calculate Y-axis domain to ensure negative values are shown
+  const yDomain = useMemo(() => {
+    if (!portfolio || !selectedEnv) return [0, 0];
+    let min = 0;
+    let max = 0;
+    portfolio.forEach(item => {
+      selectedEnv.stocks.forEach(stock => {
+        const value = item.positions[stock];
+        if (value !== undefined && !isNaN(value)) {
+          min = Math.min(min, value);
+          max = Math.max(max, value);
+        }
+      });
+    });
+    // Add some padding to the domain
+    const padding = (max - min) * 0.1;
+    return [Math.floor(min - padding), Math.ceil(max + padding)];
+  }, [portfolio, selectedEnv]);
 
   const renderReturnsChart = () => {
     if (!returns) return null;
@@ -180,37 +270,98 @@ const BacktestingResultsPage = ({ onBack }) => {
     return (
       <>
         <Paper p="md" mb="md">
-          <Text size="lg" fw={500} mb="md">Portfolio Positions</Text>
+          <Group position="apart" mb="md">
+            <Text size="lg" fw={500}>Portfolio Positions</Text>
+            <Text size="sm" c="dimmed">(Drag the brush below to zoom)</Text>
+          </Group>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={portfolio}>
+            <LineChart data={processedData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="date" 
                 tick={{ fontSize: 12 }}
                 interval={Math.floor(portfolio.length / 10)}
+                allowDataOverflow={true}
               />
               <YAxis 
                 tick={{ fontSize: 12 }}
+                tickFormatter={(value) => value.toFixed(1)}
+                domain={yDomain}
+                allowDataOverflow={true}
               />
               <Tooltip 
-                formatter={(value) => value.toFixed(2)}
-                labelFormatter={(label) => `Date: ${label}`}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <Paper p="md" shadow="sm">
+                        <Text size="sm" fw={500} mb="xs">Date: {label}</Text>
+                        {payload
+                          .filter(entry => entry.value !== undefined && !isNaN(entry.value))
+                          .map((entry, index) => {
+                            const stock = entry.name;
+                            const position = entry.value;
+                            const isTrade = entry.payload[`${stock}_trade`];
+                            return (
+                              <Text key={index} size="sm" style={{ color: entry.color }}>
+                                {stock}: {position.toFixed(2)}
+                                {isTrade && ' (Trade)'}
+                              </Text>
+                            );
+                          })}
+                      </Paper>
+                    );
+                  }
+                  return null;
+                }}
               />
               <Legend 
                 verticalAlign="top" 
                 height={36}
                 wrapperStyle={{ paddingBottom: '10px' }}
+                onClick={(data) => handleLegendClick(data.value)}
               />
-              {selectedEnv?.stocks.map((stock, index) => (
-                <Line
-                  key={stock}
-                  type="monotone"
-                  dataKey={`positions.${stock}`}
-                  stroke={colors[index % colors.length]}
-                  dot={false}
-                  name={stock}
-                />
-              ))}
+              {selectedEnv?.stocks.map((stock, index) => {
+                if (!visibleStocks.has(stock)) return null;
+                
+                const color = colors[index % colors.length];
+                return (
+                  <Line
+                    key={stock}
+                    type="monotone"
+                    dataKey={`positions.${stock}`}
+                    stroke={color}
+                    dot={(entry) => {
+                      const position = entry.positions?.[stock];
+                      if (position === undefined || isNaN(position)) return null;
+                      
+                      const isTransition = entry[`${stock}_transition`];
+                      const isTrade = entry[`${stock}_trade`];
+                      
+                      if (isTransition) {
+                        return <circle cx={0} cy={0} r={5} fill={color} />;
+                      }
+                      
+                      if (isTrade) {
+                        return <circle cx={0} cy={0} r={4} fill={color} stroke="white" strokeWidth={1} />;
+                      }
+                      
+                      return null;
+                    }}
+                    name={stock}
+                    connectNulls={false}
+                    strokeWidth={2}
+                    opacity={visibleStocks.has(stock) ? 1 : 0.3}
+                  />
+                );
+              })}
+              <Brush 
+                dataKey="date"
+                height={30}
+                stroke="#8884d8"
+                startIndex={0}
+                endIndex={Math.floor(portfolio.length * 0.2)}
+                tickFormatter={(value) => new Date(value).toLocaleDateString()}
+              />
             </LineChart>
           </ResponsiveContainer>
         </Paper>
