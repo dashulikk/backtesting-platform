@@ -146,27 +146,40 @@ function CreateEnvironmentPage({ onBack }) {
 
   const datePickerStyles = {
     input: {
-      backgroundColor: 'dark.6',
-      borderColor: 'dark.4',
-      color: 'gray.3',
+      backgroundColor: 'var(--mantine-color-dark-6)',
+      borderColor: 'var(--mantine-color-dark-4)',
+      color: 'var(--mantine-color-gray-3)',
       height: '38px',
       fontSize: '0.95rem',
-      width: '160px'
+      width: '100%'
     },
     day: {
-      height: '30px',
-      width: '30px'
+      height: '28px',
+      width: '28px',
+      borderRadius: '4px',
+      fontSize: '0.85rem',
+      margin: '1px',
+      '&[data-selected]': {
+        backgroundColor: 'var(--mantine-color-blue-6)',
+      },
     },
     weekday: {
-      fontSize: '0.85rem',
-      color: 'gray.4',
-      padding: '8px 0'
-    },
-    weekend: {
-      color: 'gray.5'
+      fontSize: '0.8rem',
+      color: 'var(--mantine-color-gray-5)',
+      paddingBottom: '8px',
     },
     calendarBase: {
-      width: '280px'
+      width: '250px',
+      backgroundColor: 'var(--mantine-color-dark-7)',
+      border: '1px solid var(--mantine-color-dark-4)',
+      borderRadius: '8px',
+      padding: '12px',
+    },
+    calendarHeaderControl: {
+      color: 'var(--mantine-color-gray-3)',
+      '&:hover': {
+        backgroundColor: 'var(--mantine-color-dark-5)',
+      },
     }
   };
 
@@ -184,9 +197,9 @@ function CreateEnvironmentPage({ onBack }) {
           </Group>
 
           <Grid style={{ flex: 1, minHeight: 0 }}>
-            <Grid.Col span={3}>
-              <Paper shadow="sm" p="md" bg="dark.7" style={{ border: '1px solid', borderColor: 'dark.4' }}>
-                <Stack spacing="xl">
+            <Grid.Col span={4}>
+              <Paper shadow="sm" p="md" bg="dark.7" style={{ height: '100%', border: '1px solid', borderColor: 'dark.4' }}>
+                <Stack spacing="lg">
                   <TextInput
                     required
                     size="sm"
@@ -218,10 +231,9 @@ function CreateEnvironmentPage({ onBack }) {
                         shadow: "md",
                         styles: {
                           dropdown: {
-                            backgroundColor: 'dark.7',
-                            borderColor: 'dark.4',
-                            border: '1px solid',
-                            padding: '8px'
+                            backgroundColor: 'var(--mantine-color-dark-7)',
+                            borderColor: 'var(--mantine-color-dark-4)',
+                            border: '1px solid'
                           }
                         }
                       }}
@@ -247,10 +259,9 @@ function CreateEnvironmentPage({ onBack }) {
                         shadow: "md",
                         styles: {
                           dropdown: {
-                            backgroundColor: 'dark.7',
-                            borderColor: 'dark.4',
-                            border: '1px solid',
-                            padding: '8px'
+                            backgroundColor: 'var(--mantine-color-dark-7)',
+                            borderColor: 'var(--mantine-color-dark-4)',
+                            border: '1px solid'
                           }
                         }
                       }}
@@ -279,18 +290,14 @@ function CreateEnvironmentPage({ onBack }) {
                         </Stack>
                       </Paper>
                     )}
-
-                    {selectedStocks.length === 10 && (
-                      <Alert icon={<IconAlertCircle size={16} />} color="yellow" mt="xs">
-                        Maximum 10 stocks selected
-                      </Alert>
-                    )}
                   </Box>
 
-                  <Group position="right" mt="md">
-                    <Button variant="subtle" color="gray" onClick={onBack}>Cancel</Button>
-                    <Button 
-                      type="submit" 
+                  <Group position="apart" mt="auto">
+                    <Button variant="default" onClick={onBack}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
                       loading={loading}
                       disabled={!environmentName.trim() || selectedStocks.length === 0 || !startDate || !endDate}
                     >

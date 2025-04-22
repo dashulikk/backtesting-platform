@@ -245,11 +245,10 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
             </ActionIcon>
             <Title order={2}>Strategies</Title>
           </Group>
-          {!selectedEnvironment && (
+          {selectedEnvironment && (
             <Button 
               leftSection={<IconPlus size={16} />}
               onClick={() => setAddModalOpened(true)}
-              disabled={!selectedEnvironment}
             >
               Add Strategy
             </Button>
@@ -257,7 +256,6 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
         </Group>
 
         <Stack spacing="md">
-          <Title order={3}>Environments</Title>
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
