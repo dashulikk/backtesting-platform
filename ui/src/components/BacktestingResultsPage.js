@@ -15,7 +15,8 @@ import {
   Table,
   ScrollArea,
   Grid,
-  Switch
+  Switch,
+  ActionIcon
 } from '@mantine/core';
 import { 
   IconArrowLeft, 
@@ -448,91 +449,97 @@ const BacktestingResultsPage = ({ onBack }) => {
   };
 
   return (
-    <Container>
-      <Group mb="lg">
-        <Button 
-          variant="subtle" 
-          leftIcon={<IconArrowLeft size={16} />}
-          onClick={onBack}
-        >
-          Back
-        </Button>
-        <Title order={2}>Backtesting Results</Title>
-      </Group>
-
-      {!selectedEnv ? (
-        // Show environment selection
-        <Stack>
-          <Text size="lg" fw={500} mb="md">Select Environment</Text>
-          {environments.map((env) => (
-            <Card 
-              key={env.name}
-              withBorder
-              padding="md"
-              radius="md"
-              onClick={() => setSelectedEnv(env)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Group>
-                <ThemeIcon size="lg" color="blue" variant="light">
-                  <IconDatabase size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text fw={500}>{env.name}</Text>
-                  <Text size="sm" c="dimmed">
-                    Stocks: {env.stocks.join(', ')}
-                  </Text>
-                </div>
-              </Group>
-            </Card>
-          ))}
-        </Stack>
-      ) : (
-        // Show results tabs
-        <>
-          <Group mb="md" position="apart">
-            <Text size="lg" fw={500}>{selectedEnv.name}</Text>
-            <Button 
-              variant="subtle" 
-              onClick={() => {
-                setSelectedEnv(null);
-                setReturns(null);
-                setPortfolio(null);
-                setTrades(null);
-              }}
-            >
-              Change Environment
-            </Button>
+    <Container size="xl" py="xl" style={{ height: '100%', overflow: 'auto' }}>
+      <Stack spacing="xl" style={{ height: '100%' }}>
+        <Group position="apart">
+          <Group>
+            <ActionIcon onClick={onBack} size="lg" variant="subtle">
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+            <Title order={2}>Backtesting Results</Title>
           </Group>
-          
-          <Tabs value={activeTab} onChange={setActiveTab}>
-            <Tabs.List>
-              <Tabs.Tab 
-                value="returns" 
-                leftSection={<IconChartLine size={16} />}
-              >
-                Returns
-              </Tabs.Tab>
-              <Tabs.Tab 
-                value="portfolio" 
-                leftSection={<IconChartPie size={16} />}
-              >
-                Portfolio
-              </Tabs.Tab>
-              <Tabs.Tab 
-                value="trades" 
-                leftSection={<IconTransfer size={16} />}
-              >
-                Trades
-              </Tabs.Tab>
-            </Tabs.List>
+        </Group>
 
-            <Tabs.Panel value={activeTab} pt="md">
-              {renderContent()}
-            </Tabs.Panel>
-          </Tabs>
-        </>
-      )}
+        <Grid style={{ height: 'calc(100% - 60px)' }}>
+          <Grid.Col span={12}>
+            <Paper p="md" style={{ height: '100%' }}>
+              {!selectedEnv ? (
+                // Show environment selection
+                <Stack>
+                  <Text size="lg" fw={500} mb="md">Select Environment</Text>
+                  {environments.map((env) => (
+                    <Card 
+                      key={env.name}
+                      withBorder
+                      padding="md"
+                      radius="md"
+                      onClick={() => setSelectedEnv(env)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <Group>
+                        <ThemeIcon size="lg" color="blue" variant="light">
+                          <IconDatabase size={20} />
+                        </ThemeIcon>
+                        <div>
+                          <Text fw={500}>{env.name}</Text>
+                          <Text size="sm" c="dimmed">
+                            Stocks: {env.stocks.join(', ')}
+                          </Text>
+                        </div>
+                      </Group>
+                    </Card>
+                  ))}
+                </Stack>
+              ) : (
+                // Show results tabs
+                <>
+                  <Group mb="md" position="apart">
+                    <Text size="lg" fw={500}>{selectedEnv.name}</Text>
+                    <Button 
+                      variant="subtle" 
+                      onClick={() => {
+                        setSelectedEnv(null);
+                        setReturns(null);
+                        setPortfolio(null);
+                        setTrades(null);
+                      }}
+                    >
+                      Change Environment
+                    </Button>
+                  </Group>
+                  
+                  <Tabs value={activeTab} onChange={setActiveTab}>
+                    <Tabs.List>
+                      <Tabs.Tab 
+                        value="returns" 
+                        leftSection={<IconChartLine size={16} />}
+                      >
+                        Returns
+                      </Tabs.Tab>
+                      <Tabs.Tab 
+                        value="portfolio" 
+                        leftSection={<IconChartPie size={16} />}
+                      >
+                        Portfolio
+                      </Tabs.Tab>
+                      <Tabs.Tab 
+                        value="trades" 
+                        leftSection={<IconTransfer size={16} />}
+                      >
+                        Trades
+                      </Tabs.Tab>
+                    </Tabs.List>
+
+                    <Tabs.Panel value={activeTab} pt="md">
+                      {renderContent()}
+                    </Tabs.Panel>
+                  </Tabs>
+                </>
+              )}
+            </Paper>
+          </Grid.Col>
+        </Grid>
+      </Stack>
     </Container>
   );
 };

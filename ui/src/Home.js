@@ -49,21 +49,23 @@ function MainLink({ icon: Icon, color, label, onClick, active }) {
   return (
     <UnstyledButton
       onClick={onClick}
-      style={{
-        padding: 'var(--mantine-spacing-xs) var(--mantine-spacing-sm)',
-        borderRadius: 'var(--mantine-radius-sm)',
-        color: 'var(--mantine-color-text)',
-        backgroundColor: active ? 'var(--mantine-color-blue-0)' : 'transparent',
+      sx={(theme) => ({
+        display: 'block',
+        width: '100%',
+        padding: theme.spacing.xs,
+        borderRadius: theme.radius.sm,
+        color: theme.colors.gray[3],
+        backgroundColor: active ? theme.colors.dark[4] : 'transparent',
         '&:hover': {
-          backgroundColor: 'var(--mantine-color-blue-0)',
+          backgroundColor: theme.colors.dark[5],
         },
-      }}
+      })}
     >
       <Group>
-        <ThemeIcon color={color} variant="light">
+        <ThemeIcon color={active ? 'blue' : 'gray'} variant="light">
           <Icon style={{ width: rem(16), height: rem(16) }} />
         </ThemeIcon>
-        <Text size="sm">{label}</Text>
+        <Text size="sm" c={active ? 'gray.1' : 'gray.3'}>{label}</Text>
       </Group>
     </UnstyledButton>
   );
@@ -163,18 +165,18 @@ export function Home() {
             active={activePage === 'home'}
           />
           <MainLink
-            icon={IconDatabase}
-            color="blue"
-            label="Environments"
-            onClick={() => setActivePage('environments')}
-            active={activePage === 'environments'}
-          />
-          <MainLink
             icon={IconPlus}
             color="blue"
             label="Create Environment"
             onClick={() => setActivePage('create-environment')}
             active={activePage === 'create-environment'}
+          />
+          <MainLink
+            icon={IconDatabase}
+            color="blue"
+            label="Environments"
+            onClick={() => setActivePage('environments')}
+            active={activePage === 'environments'}
           />
           <MainLink
             icon={IconChartBar}

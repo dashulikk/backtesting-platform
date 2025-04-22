@@ -33,8 +33,8 @@ function CreateEnvironmentPage({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStocks, setSelectedStocks] = useState([]);
   const [environmentName, setEnvironmentName] = useState('');
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [error, setError] = useState(null);
   const [expandedSectors, setExpandedSectors] = useState({});
 
@@ -65,12 +65,9 @@ function CreateEnvironmentPage({ onBack }) {
     });
   };
 
-  const formatDateForAPI = (date) => {
-    if (!date) return null;
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const formatDateForAPI = (dateString) => {
+    if (!dateString) return null;
+    return dateString; // Date input already returns YYYY-MM-DD format
   };
 
   const handleSubmit = async (e) => {
@@ -146,27 +143,40 @@ function CreateEnvironmentPage({ onBack }) {
 
   const datePickerStyles = {
     input: {
-      backgroundColor: 'dark.6',
-      borderColor: 'dark.4',
-      color: 'gray.3',
+      backgroundColor: 'var(--mantine-color-dark-6)',
+      borderColor: 'var(--mantine-color-dark-4)',
+      color: 'var(--mantine-color-gray-3)',
       height: '38px',
       fontSize: '0.95rem',
-      width: '160px'
+      width: '100%'
     },
     day: {
-      height: '30px',
-      width: '30px'
+      height: '28px',
+      width: '28px',
+      borderRadius: '4px',
+      fontSize: '0.85rem',
+      margin: '1px',
+      '&[data-selected]': {
+        backgroundColor: 'var(--mantine-color-blue-6)',
+      },
     },
     weekday: {
-      fontSize: '0.85rem',
-      color: 'gray.4',
-      padding: '8px 0'
-    },
-    weekend: {
-      color: 'gray.5'
+      fontSize: '0.8rem',
+      color: 'var(--mantine-color-gray-5)',
+      paddingBottom: '8px',
     },
     calendarBase: {
-      width: '280px'
+      width: '250px',
+      backgroundColor: 'var(--mantine-color-dark-7)',
+      border: '1px solid var(--mantine-color-dark-4)',
+      borderRadius: '8px',
+      padding: '12px',
+    },
+    calendarHeaderControl: {
+      color: 'var(--mantine-color-gray-3)',
+      '&:hover': {
+        backgroundColor: 'var(--mantine-color-dark-5)',
+      },
     }
   };
 
@@ -184,9 +194,9 @@ function CreateEnvironmentPage({ onBack }) {
           </Group>
 
           <Grid style={{ flex: 1, minHeight: 0 }}>
-            <Grid.Col span={3}>
-              <Paper shadow="sm" p="md" bg="dark.7" style={{ border: '1px solid', borderColor: 'dark.4' }}>
-                <Stack spacing="xl">
+            <Grid.Col span={4}>
+              <Paper shadow="sm" p="md" bg="dark.7" style={{ height: '100%', border: '1px solid', borderColor: 'dark.4' }}>
+                <Stack spacing="lg">
                   <TextInput
                     required
                     size="sm"
@@ -198,62 +208,26 @@ function CreateEnvironmentPage({ onBack }) {
                   />
 
                   <Stack spacing="xs">
-                    <DatePickerInput
+                    <TextInput
                       label={<Text c="gray.3" size="sm" weight={500}>Start Date</Text>}
-                      placeholder="Pick start date"
+                      type="date"
                       value={startDate}
-                      onChange={setStartDate}
-                      icon={<IconCalendar size={16} />}
+                      onChange={(e) => setStartDate(e.target.value)}
                       required
                       size="sm"
                       error={error && !startDate ? 'Required' : null}
-                      valueFormat="YYYY-MM-DD"
-                      clearable
-                      maxDate={endDate || new Date(2025, 11, 31)}
-                      minDate={new Date(2000, 0, 1)}
-                      firstDayOfWeek={1}
-                      weekendDays={[0, 6]}
-                      styles={datePickerStyles}
-                      popoverProps={{
-                        shadow: "md",
-                        styles: {
-                          dropdown: {
-                            backgroundColor: 'dark.7',
-                            borderColor: 'dark.4',
-                            border: '1px solid',
-                            padding: '8px'
-                          }
-                        }
-                      }}
+                      styles={inputStyles}
                     />
 
-                    <DatePickerInput
+                    <TextInput
                       label={<Text c="gray.3" size="sm" weight={500}>End Date</Text>}
-                      placeholder="Pick end date"
+                      type="date"
                       value={endDate}
-                      onChange={setEndDate}
-                      icon={<IconCalendar size={16} />}
+                      onChange={(e) => setEndDate(e.target.value)}
                       required
                       size="sm"
                       error={error && !endDate ? 'Required' : null}
-                      valueFormat="YYYY-MM-DD"
-                      clearable
-                      minDate={startDate || new Date(2000, 0, 1)}
-                      maxDate={new Date(2025, 11, 31)}
-                      firstDayOfWeek={1}
-                      weekendDays={[0, 6]}
-                      styles={datePickerStyles}
-                      popoverProps={{
-                        shadow: "md",
-                        styles: {
-                          dropdown: {
-                            backgroundColor: 'dark.7',
-                            borderColor: 'dark.4',
-                            border: '1px solid',
-                            padding: '8px'
-                          }
-                        }
-                      }}
+                      styles={inputStyles}
                     />
                   </Stack>
 
@@ -279,18 +253,14 @@ function CreateEnvironmentPage({ onBack }) {
                         </Stack>
                       </Paper>
                     )}
-
-                    {selectedStocks.length === 10 && (
-                      <Alert icon={<IconAlertCircle size={16} />} color="yellow" mt="xs">
-                        Maximum 10 stocks selected
-                      </Alert>
-                    )}
                   </Box>
 
-                  <Group position="right" mt="md">
-                    <Button variant="subtle" color="gray" onClick={onBack}>Cancel</Button>
-                    <Button 
-                      type="submit" 
+                  <Group position="apart" mt="auto">
+                    <Button variant="default" onClick={onBack}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
                       loading={loading}
                       disabled={!environmentName.trim() || selectedStocks.length === 0 || !startDate || !endDate}
                     >

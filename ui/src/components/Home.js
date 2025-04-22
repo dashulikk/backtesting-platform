@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AppShell, Header, Group, Button, ThemeIcon, Title } from '@mantine/core';
-import { IconChartLine } from '@tabler/icons-react';
+import { AppShell, Header, Group, Button, ThemeIcon, Title, Stack } from '@mantine/core';
+import { IconChartLine, IconHome, IconPlus, IconDatabase, IconChartBar, IconReportAnalytics } from '@tabler/icons-react';
 import HomePage from './HomePage';
 import EnvironmentsPage from './EnvironmentsPage';
 import CreateEnvironmentPage from './CreateEnvironmentPage';
@@ -67,6 +67,52 @@ const Home = () => {
             </Group>
           </Group>
         </Header>
+      }
+      navbar={
+        <AppShell.Navbar p="md">
+          <Stack>
+            <MainLink
+              icon={IconHome}
+              color="blue"
+              label="Home"
+              onClick={() => setActivePage('home')}
+              active={activePage === 'home'}
+              style={{ backgroundColor: activePage === 'home' ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}
+            />
+            <MainLink
+              icon={IconPlus}
+              color="blue"
+              label="New Environment"
+              onClick={() => setActivePage('create-environment')}
+              active={activePage === 'create-environment'}
+              style={{ backgroundColor: activePage === 'create-environment' ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}
+            />
+            <MainLink
+              icon={IconDatabase}
+              color="blue"
+              label="Environments"
+              onClick={() => setActivePage('environments')}
+              active={activePage === 'environments'}
+              style={{ backgroundColor: activePage === 'environments' ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}
+            />
+            <MainLink
+              icon={IconChartBar}
+              color="blue"
+              label="Strategies"
+              onClick={() => setActivePage('strategies')}
+              active={activePage === 'strategies'}
+              style={{ backgroundColor: activePage === 'strategies' ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}
+            />
+            <MainLink
+              icon={IconReportAnalytics}
+              color="blue"
+              label="Backtesting Results"
+              onClick={() => setActivePage('backtesting-results')}
+              active={activePage === 'backtesting-results'}
+              style={{ backgroundColor: activePage === 'backtesting-results' ? 'rgba(0, 0, 0, 0.2)' : 'transparent' }}
+            />
+          </Stack>
+        </AppShell.Navbar>
       }
     >
       {renderContent()}
