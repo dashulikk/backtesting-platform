@@ -1,6 +1,6 @@
-from market_data import MarketData
+from backtester.market_data import MarketData
 from datetime import date
-from strategies.base_strategy import Strategy, StrategyType
+from backtester.strategies.base_strategy import Strategy, StrategyType
 
 from typing import Optional
 

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Dict
-from environment import Environment
-from market_data import MarketData
+from backtester.environment import Environment
+from backtester.market_data import MarketData
 from datetime import date, timedelta
 import pandas as pd
 from typing import Optional, Set
-from strategies.base_strategy import StrategyType
+from backtester.strategies.base_strategy import StrategyType
 
 
 @dataclass(frozen=True)

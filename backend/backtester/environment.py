@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List
-from strategies.base_strategy import Strategy
+from backtester.strategies.base_strategy import Strategy
 from datetime import date
 
 

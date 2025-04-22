@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response, status, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Response, status, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,18 +7,9 @@ from datetime import date, datetime, timedelta
 from abc import ABC
 from enum import Enum
 import random
-import pandas as pd
 from jose import jwt, JWTError
 from pymongo import MongoClient
 from bson import ObjectId
-
-from backtester.back_tester import BackTester
-from backtester.environment import Environment as BackTesterEnvironment
-from backtester.strategies.example_strategy import ExampleStrategy as BackTesterExampleStrategy
-from backtester.strategies.example_strategy1 import ExampleStrategy1 as BackTesterExampleStrategy1
-from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
-
-data_df = pd.read_csv("./backtester/data.csv")
 
 # Initialize MongoDB client
 client = MongoClient('mongodb://localhost:27017/')
@@ -110,46 +101,7 @@ class TradeData(BaseModel):
 class BacktestResponse(BaseModel):
     status: str = "ok"
 
-def _get_backtester_strategies(env: Environment):
-    backtester_strategies = []
-    for strategy in env['strategies']:
-        if strategy['type'] == 'ExampleStrategy1':
-            backtester_strategies.append(
-                BackTesterExampleStrategy1(
-                    days=strategy['days'],
-                    n=strategy['n']
-                )
-            )
-        elif strategy['type'] == 'ExampleStrategy2':
-            backtester_strategies.append(
-                BackTesterExampleStrategy2(
-                    a=strategy['a'],
-                    b=strategy['b']
-                )
-            )
-    
-    return backtester_strategies
-
-def _get_backtester_environment(env: Environment):
-    start_date = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
-    end_date = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
-
-    strategies = _get_backtester_strategies(env)
-
-    return BackTesterEnvironment(
-        tickers=env['stocks'],
-        start_date=start_date,
-        end_date=end_date,
-        strategies=strategies,
-        cash=1000,  # TODO: Make this dynamic
-    )
-
-def _backtest(env: Environment, mongo_db):
-    backtester_env = _get_backtester_environment(env)
-    tester = BackTester(data_df=data_df, env=backtester_env)
-    tester.backtest()
-
-    # TODO: Store results in MongoDB
+def get_backtester_environment(env: Environment):
     
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
@@ -287,7 +239,6 @@ async def get_environment_trades(
 
 @app.post("/{env_name}/backtest", status_code=status.HTTP_200_OK, response_class=Response)
 async def run_backtest(
-    background_tasks: BackgroundTasks,
     env_name: str,
     current_user: User = Depends(get_current_user)
 ):
@@ -297,13 +248,62 @@ async def run_backtest(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    background_tasks.add_task(_backtest, env, db)
-    
     # Convert ISO format dates back to date objects for processing
     start_date = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
     end_date = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
+
+    # Initialize the actual backtester environment
+    from backtester.environment import Environment
+    from backtester.back_tester import BackTester
+    from backtester.strategies.example_strategy import ExampleStrategy
+    from backtester.strategies.example_strategy1 import ExampleStrategy1
+    from backtester.strategies.example_strategy2 import ExampleStrategy2
+    import pandas as pd
+
+    # Convert MongoDB strategies to backtester strategies
+    backtester_strategies = []
+    for strategy in env['strategies']:
+        if strategy['type'] == 'ExampleStrategy':
+            backtester_strategies.append(
+                ExampleStrategy(
+                    days=strategy['days'],
+                    exposure=0.05,  # Default value for now
+                    liquidate_above=1.05,  # Default value for now
+                    liquidate_below=0.95  # Default value for now
+                )
+            )
+        elif strategy['type'] == 'ExampleStrategy1':
+            backtester_strategies.append(
+                ExampleStrategy1(
+                    days=strategy['days'],
+                    n=strategy['n']
+                )
+            )
+        elif strategy['type'] == 'ExampleStrategy2':
+            backtester_strategies.append(
+                ExampleStrategy2(
+                    a=strategy['a'],
+                    b=strategy['b']
+                )
+            )
+
+    # Load market data
+    data_df = pd.read_csv("./backtester/data.csv")
+
+    # Create environment with the stored configuration
+    backtester_env = Environment(
+        tickers=env['stocks'],
+        start_date=start_date,
+        end_date=end_date,
+        cash=1000,  # Hardcoded for now
+        strategies=backtester_strategies,
+    )
+
+    # Run the backtest
+    tester = BackTester(data_df=data_df, env=backtester_env)
+    tester.backtest()
     
-    # Generate dummy returns data
+    # Generate dummy returns data (keeping hardcoded for now)
     returns_data = []
     current_date = start_date
     
@@ -315,26 +315,20 @@ async def run_backtest(
         })
         current_date += timedelta(days=1)
     
-    # Generate dummy portfolio data
+    # Convert backtest results to portfolio data format
     portfolio_data = []
     current_date = start_date
-    positions = {stock: random.uniform(-100, 100) for stock in env['stocks']}
     
     while current_date <= end_date:
-        # Update positions with some random changes
-        for stock in positions:
-            change = random.uniform(-5, 5)
-            positions[stock] += change
-            positions[stock] = max(min(positions[stock], 200), -200)  # Keep within bounds
-        
-        # Create a copy of all positions (don't remove any)
-        portfolio_data.append({
-            "date": current_date.isoformat(),
-            "positions": positions.copy()  # Include all positions
-        })
+        if current_date in tester.holdings:
+            holdings = tester.holdings[current_date]
+            portfolio_data.append({
+                "date": current_date.isoformat(),
+                "positions": holdings.portfolio
+            })
         current_date += timedelta(days=1)
     
-    # Generate dummy trades data
+    # Generate dummy trades data (keeping hardcoded for now)
     trades_data = []
     current_date = start_date
     
