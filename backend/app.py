@@ -474,3 +474,53 @@ async def delete_environment(
     db.environments.delete_one({"_id": env['_id']})
     
     return Response(status_code=status.HTTP_200_OK)
+
+@app.put("/environments/{env_name}", status_code=status.HTTP_200_OK, response_class=Response)
+async def update_environment(
+    env_name: str,
+    request: CreateEnvironmentRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update an environment while preserving its strategies."""
+    user_id = current_user.username
+    
+    # Find the existing environment
+    existing = db.environments.find_one({"user_id": user_id, "name": env_name})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Environment not found")
+    
+    # If name is being changed, check if new name already exists
+    if env_name != request.name:
+        name_exists = db.environments.find_one({"user_id": user_id, "name": request.name})
+        if name_exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Environment with this name already exists"
+            )
+    
+    # Preserve strategies from existing environment
+    strategies = existing.get('strategies', [])
+    
+    # Update environment with new data while keeping strategies
+    updated_env = {
+        "name": request.name,
+        "user_id": user_id,
+        "stocks": request.stocks,
+        "start_date": request.start_date.isoformat(),
+        "end_date": request.end_date.isoformat(),
+        "strategies": strategies
+    }
+    
+    # Update in MongoDB
+    db.environments.update_one(
+        {"_id": existing["_id"]},
+        {"$set": updated_env}
+    )
+    
+    # Delete any existing backtest results since environment parameters changed
+    env_id = str(existing['_id'])
+    db.returns.delete_one({"environment_id": env_id})
+    db.portfolio.delete_one({"environment_id": env_id})
+    db.trades.delete_one({"environment_id": env_id})
+    
+    return Response(status_code=status.HTTP_200_OK)

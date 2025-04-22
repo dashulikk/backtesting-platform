@@ -74,24 +74,6 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
     if (!editingEnv) return;
     
     try {
-      // First delete the old environment
-      const deleteUrl = `http://localhost:8000/environments/${encodeURIComponent(editingEnv.name)}`;
-      console.log('Deleting environment at URL:', deleteUrl);
-      
-      const deleteResponse = await fetch(deleteUrl, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': 'Bearer test-token-for-user1'
-        }
-      });
-      
-      if (!deleteResponse.ok) {
-        const errorData = await deleteResponse.json().catch(() => null);
-        console.error('Delete response:', errorData);
-        throw new Error(errorData?.detail || `Failed to delete environment: ${deleteResponse.status} ${deleteResponse.statusText}`);
-      }
-
-      // Then create a new environment with updated values
       const createData = {
         name: editName,
         stocks: editStocks,
@@ -100,8 +82,8 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
       };
       console.log('Creating new environment with data:', createData);
       
-      const createResponse = await fetch('http://localhost:8000/environments', {
-        method: 'POST',
+      const editResponse = await fetch(`http://localhost:8000/environments/${encodeURIComponent(editingEnv.name)}`, {
+        method: 'PUT',
         headers: {
           'Authorization': 'Bearer test-token-for-user1',
           'Content-Type': 'application/json',
@@ -109,10 +91,10 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
         body: JSON.stringify(createData),
       });
       
-      if (!createResponse.ok) {
-        const errorData = await createResponse.json().catch(() => null);
-        console.error('Create response:', errorData);
-        throw new Error(errorData?.detail || `Failed to create environment: ${createResponse.status} ${createResponse.statusText}`);
+      if (!editResponse.ok) {
+        const errorData = await editResponse.json().catch(() => null);
+        console.error('Edit response:', errorData);
+        throw new Error(errorData?.detail || `Failed to edit environment: ${editResponse.status} ${editResponse.statusText}`);
       }
       
       // Refresh environments to get the updated data
