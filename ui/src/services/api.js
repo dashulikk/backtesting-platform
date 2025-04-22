@@ -286,11 +286,12 @@ class Api {
         const backtestedEnvs = [];
 
         for (const env of allEnvs) {
-            const isBacktested = await this.hasBeenBacktested(env.name);
-            console.log(`Environment ${env.name} backtested:`, isBacktested);
-            if (isBacktested) {
-                backtestedEnvs.push(env);
-            }
+            // const isBacktested = await this.hasBeenBacktested(env.name);
+            // console.log(`Environment ${env.name} backtested:`, isBacktested);
+            // if (isBacktested) {
+            //     backtestedEnvs.push(env);
+            // }
+            backtestedEnvs.push(env);
         }
 
         console.log('Backtested environments:', backtestedEnvs);

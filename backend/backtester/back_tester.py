@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from typing import Dict
-from environment import Environment
-from market_data import MarketData
+from backtester.environment import Environment
+from backtester.market_data import MarketData
 from datetime import date, timedelta
 import pandas as pd
-from typing import Optional, Set
-from strategies.base_strategy import StrategyType
+from typing import Optional, Set, List
+from backtester.strategies.base_strategy import StrategyType
 
 
 @dataclass(frozen=True)
@@ -24,12 +24,19 @@ class Holdings:
     returns: float
 
 
+@dataclass
+class Trade:
+    ticker: str
+    amount: float
+    date: date
+
 class BackTester:
     def __init__(self, data_df: pd.DataFrame, env: Environment):
         self.all_market_data = MarketData(data_df, env.tickers)
         self.env = env
 
         self.holdings: Dict[date, Holdings] = {}
+        self.trades: List[Trade] = []
 
         self.current_cash = env.cash
         self.current_portfolio: Dict[str, Set[Position]] = {}
@@ -58,6 +65,8 @@ class BackTester:
 
         liquidate_above_price = None if not liquidate_above else price * liquidate_above
         liquidate_below_price = None if not liquidate_below else price * liquidate_below
+
+        self.trades.append(Trade(ticker=ticker, amount=amount*price, date=date))
 
         self.current_portfolio[ticker].add(
             Position(
@@ -93,6 +102,8 @@ class BackTester:
 
         liquidate_above_price = None if not liquidate_above else price * liquidate_above
         liquidate_below_price = None if not liquidate_below else price * liquidate_below
+
+        self.trades.append(Trade(ticker=ticker, amount=amount*price, date=date))
 
         self.current_portfolio[ticker].add(
             Position(
@@ -195,3 +206,9 @@ class BackTester:
             self.holdings[current_date] = self._snapshotHoldings(current_date)
 
             current_date += timedelta(days=1)
+    
+    def get_trades(self) -> Dict[date, List[Trade]]:
+        return self.trades
+    
+    def get_holdings(self) -> Dict[date, Holdings]:
+        return self.holdings

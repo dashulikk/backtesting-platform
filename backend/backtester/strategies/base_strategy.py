@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date
-from market_data import MarketData
+from backtester.market_data import MarketData
 from enum import Enum
 
 from typing import Optional

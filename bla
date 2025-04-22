@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response, status, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Response, status, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,17 +7,9 @@ from datetime import date, datetime, timedelta
 from abc import ABC
 from enum import Enum
 import random
-import pandas as pd
 from jose import jwt, JWTError
 from pymongo import MongoClient
 from bson import ObjectId
-
-from backtester.back_tester import BackTester
-from backtester.environment import Environment as BackTesterEnvironment
-from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
-from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
-
-data_df = pd.read_csv("./backtester/data.csv")
 
 # Initialize MongoDB client
 client = MongoClient('mongodb://localhost:27017/')
@@ -109,104 +101,8 @@ class TradeData(BaseModel):
 class BacktestResponse(BaseModel):
     status: str = "ok"
 
-def _get_backtester_strategies(env: Environment):
-    backtester_strategies = []
-    for strategy in env['strategies']:
-        print(strategy)
-        if strategy['type'] == 'ExampleStrategy':
-            backtester_strategies.append(
-                BackTesterExampleStrategy1(
-                    days=strategy['days'],
-                    n=strategy['n']
-                )
-            )
-        elif strategy['type'] == 'ExampleStrategy2':
-            backtester_strategies.append(
-                BackTesterExampleStrategy2(
-                    a=strategy['a'],
-                    b=strategy['b']
-                )
-            )
+def get_backtester_environment(env: Environment):
     
-    return backtester_strategies
-
-def _get_backtester_environment(env: Environment):
-    start_date = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
-    end_date = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
-
-    strategies = _get_backtester_strategies(env)
-
-    return BackTesterEnvironment(
-        tickers=env['stocks'],
-        start_date=start_date,
-        end_date=end_date,
-        strategies=strategies,
-        cash=1000,  # TODO: Make this dynamic
-    )
-
-def _backtest(env: Environment, mongo_db):
-    backtester_env = _get_backtester_environment(env)
-    tester = BackTester(data_df=data_df, env=backtester_env)
-    tester.backtest()
-
-    # Get results from backtester
-    trades = tester.get_trades()  # List[Trade]
-    holdings_by_date = tester.get_holdings()  # Dict[date, Holdings]
-
-    # Convert trades to our API format
-    trades_data = []
-    for trade in trades:
-        trades_data.append({
-            "date": trade.date.isoformat(),
-            "stock": trade.ticker,
-            "cash": abs(trade.amount),  # Use absolute value since we indicate direction in type
-            "type": "Long" if trade.amount > 0 else "Short"
-        })
-
-    # Convert holdings to our API format
-    portfolio_data = []
-    returns_data = []
-    
-    # Sort dates to ensure chronological order
-    dates = sorted(holdings_by_date.keys())
-    for date in dates:
-        holding = holdings_by_date[date]
-        
-        # Portfolio data
-        portfolio_data.append({
-            "date": date.isoformat(),
-            "positions": holding.portfolio
-        })
-        
-        # Returns data
-        returns_data.append({
-            "date": date.isoformat(),
-            "returns": holding.returns
-        })
-
-    # Store results in MongoDB
-    env_id = str(env['_id'])
-    
-    # Update or insert returns data
-    mongo_db.returns.update_one(
-        {"environment_id": env_id},
-        {"$set": {"data": returns_data}},
-        upsert=True
-    )
-    
-    # Update or insert portfolio data
-    mongo_db.portfolio.update_one(
-        {"environment_id": env_id},
-        {"$set": {"data": portfolio_data}},
-        upsert=True
-    )
-    
-    # Update or insert trades data
-    mongo_db.trades.update_one(
-        {"environment_id": env_id},
-        {"$set": {"data": trades_data}},
-        upsert=True
-    )
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     # Special case for test token
@@ -343,7 +239,6 @@ async def get_environment_trades(
 
 @app.post("/{env_name}/backtest", status_code=status.HTTP_200_OK, response_class=Response)
 async def run_backtest(
-    background_tasks: BackgroundTasks,
     env_name: str,
     current_user: User = Depends(get_current_user)
 ):
@@ -353,7 +248,130 @@ async def run_backtest(
     if not env:
         raise HTTPException(status_code=404, detail="Environment not found")
     
-    background_tasks.add_task(_backtest, env, db)
+    # Convert ISO format dates back to date objects for processing
+    start_date = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
+    end_date = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
+
+    # Initialize the actual backtester environment
+    from backtester.environment import Environment
+    from backtester.back_tester import BackTester
+    from backtester.strategies.example_strategy import ExampleStrategy
+    from backtester.strategies.example_strategy1 import ExampleStrategy1
+    from backtester.strategies.example_strategy2 import ExampleStrategy2
+    import pandas as pd
+
+    # Convert MongoDB strategies to backtester strategies
+    backtester_strategies = []
+    for strategy in env['strategies']:
+        if strategy['type'] == 'ExampleStrategy':
+            backtester_strategies.append(
+                ExampleStrategy(
+                    days=strategy['days'],
+                    exposure=0.05,  # Default value for now
+                    liquidate_above=1.05,  # Default value for now
+                    liquidate_below=0.95  # Default value for now
+                )
+            )
+        elif strategy['type'] == 'ExampleStrategy1':
+            backtester_strategies.append(
+                ExampleStrategy1(
+                    days=strategy['days'],
+                    n=strategy['n']
+                )
+            )
+        elif strategy['type'] == 'ExampleStrategy2':
+            backtester_strategies.append(
+                ExampleStrategy2(
+                    a=strategy['a'],
+                    b=strategy['b']
+                )
+            )
+
+    # Load market data
+    data_df = pd.read_csv("./backtester/data.csv")
+
+    # Create environment with the stored configuration
+    backtester_env = Environment(
+        tickers=env['stocks'],
+        start_date=start_date,
+        end_date=end_date,
+        cash=1000,  # Hardcoded for now
+        strategies=backtester_strategies,
+    )
+
+    # Run the backtest
+    tester = BackTester(data_df=data_df, env=backtester_env)
+    tester.backtest()
+    
+    # Generate dummy returns data (keeping hardcoded for now)
+    returns_data = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        daily_return = random.uniform(-2.0, 2.0)
+        returns_data.append({
+            "date": current_date.isoformat(),
+            "returns": daily_return / 100  # Convert to decimal
+        })
+        current_date += timedelta(days=1)
+    
+    # Convert backtest results to portfolio data format
+    portfolio_data = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        if current_date in tester.holdings:
+            holdings = tester.holdings[current_date]
+            portfolio_data.append({
+                "date": current_date.isoformat(),
+                "positions": holdings.portfolio
+            })
+        current_date += timedelta(days=1)
+    
+    # Generate dummy trades data (keeping hardcoded for now)
+    trades_data = []
+    current_date = start_date
+    
+    while current_date <= end_date:
+        if random.random() < 0.2:
+            num_trades = random.randint(1, 3)
+            for _ in range(num_trades):
+                stock = random.choice(env['stocks'])
+                cash = random.uniform(1000, 10000)
+                trade_type = random.choice(["Long", "Short"])
+                
+                trades_data.append({
+                    "date": current_date.isoformat(),
+                    "stock": stock,
+                    "cash": cash,
+                    "type": trade_type
+                })
+        
+        current_date += timedelta(days=1)
+    
+    # Store the results in MongoDB
+    env_id = str(env['_id'])
+    
+    # Update or insert returns data
+    db.returns.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": returns_data}},
+        upsert=True
+    )
+    
+    # Update or insert portfolio data
+    db.portfolio.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": portfolio_data}},
+        upsert=True
+    )
+    
+    # Update or insert trades data
+    db.trades.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": trades_data}},
+        upsert=True
+    )
     
     return Response(status_code=status.HTTP_200_OK)
 
@@ -472,55 +490,5 @@ async def delete_environment(
     
     # Delete the environment
     db.environments.delete_one({"_id": env['_id']})
-    
-    return Response(status_code=status.HTTP_200_OK)
-
-@app.put("/environments/{env_name}", status_code=status.HTTP_200_OK, response_class=Response)
-async def update_environment(
-    env_name: str,
-    request: CreateEnvironmentRequest,
-    current_user: User = Depends(get_current_user)
-):
-    """Update an environment while preserving its strategies."""
-    user_id = current_user.username
-    
-    # Find the existing environment
-    existing = db.environments.find_one({"user_id": user_id, "name": env_name})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Environment not found")
-    
-    # If name is being changed, check if new name already exists
-    if env_name != request.name:
-        name_exists = db.environments.find_one({"user_id": user_id, "name": request.name})
-        if name_exists:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Environment with this name already exists"
-            )
-    
-    # Preserve strategies from existing environment
-    strategies = existing.get('strategies', [])
-    
-    # Update environment with new data while keeping strategies
-    updated_env = {
-        "name": request.name,
-        "user_id": user_id,
-        "stocks": request.stocks,
-        "start_date": request.start_date.isoformat(),
-        "end_date": request.end_date.isoformat(),
-        "strategies": strategies
-    }
-    
-    # Update in MongoDB
-    db.environments.update_one(
-        {"_id": existing["_id"]},
-        {"$set": updated_env}
-    )
-    
-    # Delete any existing backtest results since environment parameters changed
-    env_id = str(existing['_id'])
-    db.returns.delete_one({"environment_id": env_id})
-    db.portfolio.delete_one({"environment_id": env_id})
-    db.trades.delete_one({"environment_id": env_id})
     
     return Response(status_code=status.HTTP_200_OK)

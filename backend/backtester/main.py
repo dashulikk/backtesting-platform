@@ -2,9 +2,9 @@ import pandas as pd
 from environment import Environment
 from back_tester import BackTester
 from datetime import date
-from strategies.example_strategy import ExampleStrategy
+from backend.backtester.strategies.example_normal_strategy import ExampleStrategy
 
-data_df = pd.read_csv("data.csv")
+data_df = pd.read_csv("./backtester/data.csv")
 
 env = Environment(
     tickers=["NVDA"],
