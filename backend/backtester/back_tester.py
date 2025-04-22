@@ -4,7 +4,7 @@ from backtester.environment import Environment
 from backtester.market_data import MarketData
 from datetime import date, timedelta
 import pandas as pd
-from typing import Optional, Set
+from typing import Optional, Set, List
 from backtester.strategies.base_strategy import StrategyType
 
 
@@ -23,6 +23,9 @@ class Holdings:
     portfolio: Dict[str, float]
     returns: float
 
+class Trade:
+    ticker: str
+    amount: float
 
 class BackTester:
     def __init__(self, data_df: pd.DataFrame, env: Environment):
@@ -30,6 +33,7 @@ class BackTester:
         self.env = env
 
         self.holdings: Dict[date, Holdings] = {}
+        self.trades: List[Trade] = []
 
         self.current_cash = env.cash
         self.current_portfolio: Dict[str, Set[Position]] = {}
@@ -58,6 +62,8 @@ class BackTester:
 
         liquidate_above_price = None if not liquidate_above else price * liquidate_above
         liquidate_below_price = None if not liquidate_below else price * liquidate_below
+
+        self.trades.append(Trade(ticker=ticker, amount=amount))
 
         self.current_portfolio[ticker].add(
             Position(
@@ -93,6 +99,8 @@ class BackTester:
 
         liquidate_above_price = None if not liquidate_above else price * liquidate_above
         liquidate_below_price = None if not liquidate_below else price * liquidate_below
+
+        self.trades.append(Trade(ticker=ticker, amount=amount))
 
         self.current_portfolio[ticker].add(
             Position(
@@ -195,3 +203,9 @@ class BackTester:
             self.holdings[current_date] = self._snapshotHoldings(current_date)
 
             current_date += timedelta(days=1)
+    
+    def get_trades(self) -> List[Trade]:
+        return self.trades
+    
+    def get_holdings(self) -> Dict[date, Holdings]:
+        return self.holdings

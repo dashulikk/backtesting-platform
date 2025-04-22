@@ -150,6 +150,11 @@ def _backtest(env: Environment, mongo_db):
     tester.backtest()
 
     # TODO: Store results in MongoDB
+    trades = tester.get_trades()
+    holdings = tester.get_holdings()
+
+    # Store trades in MongoDB
+    
     
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
