@@ -5,7 +5,8 @@ const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMSIsImV
 class Api {
     constructor() {
         this.baseUrl = API_BASE_URL;
-        this.token = TEST_TOKEN;
+        this.token = 'test-token-for-user1';
+        this.backtestedEnvironments = new Set();
         
         console.log('API Service Initialized:', {
             baseUrl: this.baseUrl,
@@ -38,8 +39,8 @@ class Api {
         }
 
         if (!text) {
-            console.log('Empty response, returning empty array');
-            return [];
+            console.log('Empty response, returning null');
+            return null;
         }
 
         try {
@@ -62,8 +63,7 @@ class Api {
         try {
             const response = await fetch(url, {
                 method: 'GET',
-                headers: this.getHeaders(),
-                credentials: 'include'
+                headers: this.getHeaders()
             });
 
             const data = await this.handleResponse(response);
@@ -76,6 +76,66 @@ class Api {
             return data;
         } catch (error) {
             console.error('Failed to fetch environments:', error);
+            throw error;
+        }
+    }
+
+    async getEnvironmentReturns(envName) {
+        const url = `${this.baseUrl}/${envName}/returns`;
+        console.log('Fetching returns for environment:', {
+            url,
+            envName
+        });
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: this.getHeaders()
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            console.error('Failed to fetch returns:', error);
+            throw error;
+        }
+    }
+
+    async getEnvironmentPortfolio(envName) {
+        const url = `${this.baseUrl}/${envName}/portfolio`;
+        console.log('Fetching portfolio for environment:', {
+            url,
+            envName
+        });
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: this.getHeaders()
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            console.error('Failed to fetch portfolio:', error);
+            throw error;
+        }
+    }
+
+    async getEnvironmentTrades(envName) {
+        const url = `${this.baseUrl}/${envName}/trades`;
+        console.log('Fetching trades for environment:', {
+            url,
+            envName
+        });
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: this.getHeaders()
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            console.error('Failed to fetch trades:', error);
             throw error;
         }
     }
@@ -172,6 +232,69 @@ class Api {
         });
 
         await this.handleResponse(response);
+    }
+
+    async runBacktest(envName) {
+        const url = `${this.baseUrl}/${envName}/backtest`;
+        console.log('Running backtest:', {
+            url,
+            envName
+        });
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                this.backtestedEnvironments.add(envName);
+                console.log('Backtest completed for environment:', envName);
+            }
+
+            return response.ok;
+        } catch (error) {
+            console.error('Error running backtest:', error);
+            return false;
+        }
+    }
+
+    async hasBeenBacktested(envName) {
+        const url = `${this.baseUrl}/${envName}/backtest`;
+        console.log('Checking if environment has been backtested:', {
+            url,
+            envName
+        });
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: this.getHeaders()
+            });
+
+            // If we get a 200 response, it means the environment has been backtested
+            return response.ok;
+        } catch (error) {
+            console.error('Error checking backtest status:', error);
+            return false;
+        }
+    }
+
+    async getBacktestedEnvironments() {
+        const allEnvs = await this.getEnvironments();
+        const backtestedEnvs = [];
+
+        for (const env of allEnvs) {
+            const isBacktested = await this.hasBeenBacktested(env.name);
+            console.log(`Environment ${env.name} backtested:`, isBacktested);
+            if (isBacktested) {
+                backtestedEnvs.push(env);
+            }
+        }
+
+        console.log('Backtested environments:', backtestedEnvs);
+        return backtestedEnvs;
     }
 }
 

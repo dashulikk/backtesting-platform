@@ -266,9 +266,12 @@ async def get_environment_portfolio(
             positions[stock] += change
             positions[stock] = max(min(positions[stock], 200), -200)
         
+        positions_copy = positions.copy()
+        positions_copy.pop(random.choice(list(positions_copy.keys())))
+        
         portfolio_data.append(PortfolioData(
             date=current_date,
-            positions=positions.copy()
+            positions=positions_copy
         ))
         current_date += timedelta(days=1)
     

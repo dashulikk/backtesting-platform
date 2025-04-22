@@ -36,12 +36,14 @@ import {
   IconSettings,
   IconHistory,
   IconChevronRight,
-  IconDatabase
+  IconDatabase,
+  IconReportAnalytics
 } from '@tabler/icons-react';
 import HomePage from './components/HomePage';
 import EnvironmentsPage from './components/EnvironmentsPage';
 import StrategiesPage from './components/StrategiesPage';
 import CreateEnvironmentPage from './components/CreateEnvironmentPage';
+import BacktestingResultsPage from './components/BacktestingResultsPage';
 
 function MainLink({ icon: Icon, color, label, onClick, active }) {
   return (
@@ -83,6 +85,8 @@ export function Home() {
         return <CreateEnvironmentPage onBack={() => setActivePage('environments')} onNavigate={setActivePage} />;
       case 'strategies':
         return <StrategiesPage onBack={() => setActivePage('home')} onNavigate={setActivePage} />;
+      case 'backtesting-results':
+        return <BacktestingResultsPage onBack={() => setActivePage('home')} />;
       default:
         return <HomePage onNavigate={setActivePage} />;
     }
@@ -178,6 +182,13 @@ export function Home() {
             label="Strategies"
             onClick={() => setActivePage('strategies')}
             active={activePage === 'strategies'}
+          />
+          <MainLink
+            icon={IconReportAnalytics}
+            color="blue"
+            label="Backtesting Results"
+            onClick={() => setActivePage('backtesting-results')}
+            active={activePage === 'backtesting-results'}
           />
         </Stack>
       </AppShell.Navbar>
