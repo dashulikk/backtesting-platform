@@ -9,5 +9,5 @@ class Environment:
     tickers: List[str]
     start_date: date
     end_date: date
-    cash: int
+    cash: float
     strategies: List[Strategy]
