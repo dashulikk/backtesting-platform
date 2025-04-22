@@ -5,6 +5,7 @@ import HomePage from './HomePage';
 import EnvironmentsPage from './EnvironmentsPage';
 import CreateEnvironmentPage from './CreateEnvironmentPage';
 import StrategiesPage from './StrategiesPage';
+import BacktestingResultsPage from './BacktestingResultsPage';
 
 const Home = () => {
   const [activePage, setActivePage] = useState('home');
@@ -19,6 +20,8 @@ const Home = () => {
         return <CreateEnvironmentPage onBack={() => setActivePage('environments')} />;
       case 'strategies':
         return <StrategiesPage onBack={() => setActivePage('home')} />;
+      case 'backtesting-results':
+        return <BacktestingResultsPage onBack={() => setActivePage('home')} />;
       default:
         return <HomePage onNavigate={setActivePage} />;
     }
@@ -54,6 +57,12 @@ const Home = () => {
                 onClick={() => setActivePage('strategies')}
               >
                 Strategies
+              </Button>
+              <Button
+                variant={activePage === 'backtesting-results' ? 'filled' : 'light'}
+                onClick={() => setActivePage('backtesting-results')}
+              >
+                Backtesting Results
               </Button>
             </Group>
           </Group>
