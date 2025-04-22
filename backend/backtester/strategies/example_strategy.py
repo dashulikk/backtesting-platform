@@ -5,28 +5,16 @@ from backtester.strategies.base_strategy import Strategy, StrategyType
 from typing import Optional
 
 
-class ExampleStrategy(Strategy):
-    def __init__(self, days, exposure, liquidate_above, liquidate_below):
+class ExampleStrategy1(Strategy):
+    def __init__(self, days, n):
         self.days = days
-        self.exposure = exposure
-        self.liquidate_above_price = liquidate_above
-        self.liquidate_below_price = liquidate_below
+        self.n = n
 
     def should_enter(self, date: date, ticker: str, market_data: MarketData) -> bool:
-        price = market_data.get_close_price(ticker, date)
-        if price > 140:
-            return True
-        else:
-            return False
+        return True
 
     def get_exposure(self) -> float:
-        return self.exposure
+        return 1.0
 
     def strategy_type(self) -> StrategyType:
-        return StrategyType.SHORT
-
-    def liquidate_below(self) -> Optional[float]:
-        return self.liquidate_below_price
-
-    def liquidate_above(self) -> Optional[float]:
-        return self.liquidate_above_price
+        return StrategyType.LONG

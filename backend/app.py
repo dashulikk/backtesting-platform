@@ -14,8 +14,7 @@ from bson import ObjectId
 
 from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
-from backtester.strategies.example_strategy import ExampleStrategy as BackTesterExampleStrategy
-from backtester.strategies.example_strategy1 import ExampleStrategy1 as BackTesterExampleStrategy1
+from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
 
 data_df = pd.read_csv("./backtester/data.csv")
@@ -113,7 +112,8 @@ class BacktestResponse(BaseModel):
 def _get_backtester_strategies(env: Environment):
     backtester_strategies = []
     for strategy in env['strategies']:
-        if strategy['type'] == 'ExampleStrategy1':
+        print(strategy)
+        if strategy['type'] == 'ExampleStrategy':
             backtester_strategies.append(
                 BackTesterExampleStrategy1(
                     days=strategy['days'],
@@ -149,13 +149,64 @@ def _backtest(env: Environment, mongo_db):
     tester = BackTester(data_df=data_df, env=backtester_env)
     tester.backtest()
 
-    # TODO: Store results in MongoDB
-    trades = tester.get_trades()
-    holdings = tester.get_holdings()
+    # Get results from backtester
+    trades = tester.get_trades()  # List[Trade]
+    holdings_by_date = tester.get_holdings()  # Dict[date, Holdings]
 
-    # Store trades in MongoDB
+    # Convert trades to our API format
+    trades_data = []
+    for trade in trades:
+        trades_data.append({
+            "date": trade.date.isoformat(),
+            "stock": trade.ticker,
+            "cash": abs(trade.amount),  # Use absolute value since we indicate direction in type
+            "type": "Long" if trade.amount > 0 else "Short"
+        })
+
+    # Convert holdings to our API format
+    portfolio_data = []
+    returns_data = []
     
+    # Sort dates to ensure chronological order
+    dates = sorted(holdings_by_date.keys())
+    for date in dates:
+        holding = holdings_by_date[date]
+        
+        # Portfolio data
+        portfolio_data.append({
+            "date": date.isoformat(),
+            "positions": holding.portfolio
+        })
+        
+        # Returns data
+        returns_data.append({
+            "date": date.isoformat(),
+            "returns": holding.returns
+        })
+
+    # Store results in MongoDB
+    env_id = str(env['_id'])
     
+    # Update or insert returns data
+    mongo_db.returns.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": returns_data}},
+        upsert=True
+    )
+    
+    # Update or insert portfolio data
+    mongo_db.portfolio.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": portfolio_data}},
+        upsert=True
+    )
+    
+    # Update or insert trades data
+    mongo_db.trades.update_one(
+        {"environment_id": env_id},
+        {"$set": {"data": trades_data}},
+        upsert=True
+    )
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     # Special case for test token
@@ -303,86 +354,6 @@ async def run_backtest(
         raise HTTPException(status_code=404, detail="Environment not found")
     
     background_tasks.add_task(_backtest, env, db)
-    
-    # Convert ISO format dates back to date objects for processing
-    start_date = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
-    end_date = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
-    
-    # Generate dummy returns data
-    returns_data = []
-    current_date = start_date
-    
-    while current_date <= end_date:
-        daily_return = random.uniform(-2.0, 2.0)
-        returns_data.append({
-            "date": current_date.isoformat(),
-            "returns": daily_return / 100  # Convert to decimal
-        })
-        current_date += timedelta(days=1)
-    
-    # Generate dummy portfolio data
-    portfolio_data = []
-    current_date = start_date
-    positions = {stock: random.uniform(-100, 100) for stock in env['stocks']}
-    
-    while current_date <= end_date:
-        # Update positions with some random changes
-        for stock in positions:
-            change = random.uniform(-5, 5)
-            positions[stock] += change
-            positions[stock] = max(min(positions[stock], 200), -200)  # Keep within bounds
-        
-        # Create a copy of all positions (don't remove any)
-        portfolio_data.append({
-            "date": current_date.isoformat(),
-            "positions": positions.copy()  # Include all positions
-        })
-        current_date += timedelta(days=1)
-    
-    # Generate dummy trades data
-    trades_data = []
-    current_date = start_date
-    
-    while current_date <= end_date:
-        if random.random() < 0.2:
-            num_trades = random.randint(1, 3)
-            for _ in range(num_trades):
-                stock = random.choice(env['stocks'])
-                cash = random.uniform(1000, 10000)
-                trade_type = random.choice(["Long", "Short"])
-                
-                trades_data.append({
-                    "date": current_date.isoformat(),
-                    "stock": stock,
-                    "cash": cash,
-                    "type": trade_type
-                })
-        
-        current_date += timedelta(days=1)
-    
-    # Store the results in MongoDB
-    env_id = str(env['_id'])
-    
-    # Update or insert returns data
-    db.returns.update_one(
-        {"environment_id": env_id},
-        {"$set": {"data": returns_data}},
-        upsert=True
-    )
-    
-    # Update or insert portfolio data
-    db.portfolio.update_one(
-        {"environment_id": env_id},
-        {"$set": {"data": portfolio_data}},
-        upsert=True
-    )
-    
-    # Update or insert trades data
-    db.trades.update_one(
-        {"environment_id": env_id},
-        {"$set": {"data": trades_data}},
-        upsert=True
-    )
     
     return Response(status_code=status.HTTP_200_OK)
 

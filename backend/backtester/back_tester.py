@@ -23,9 +23,12 @@ class Holdings:
     portfolio: Dict[str, float]
     returns: float
 
+
+@dataclass
 class Trade:
     ticker: str
     amount: float
+    date: date
 
 class BackTester:
     def __init__(self, data_df: pd.DataFrame, env: Environment):
@@ -63,7 +66,7 @@ class BackTester:
         liquidate_above_price = None if not liquidate_above else price * liquidate_above
         liquidate_below_price = None if not liquidate_below else price * liquidate_below
 
-        self.trades.append(Trade(ticker=ticker, amount=amount))
+        self.trades.append(Trade(ticker=ticker, amount=amount*price, date=date))
 
         self.current_portfolio[ticker].add(
             Position(
@@ -100,7 +103,7 @@ class BackTester:
         liquidate_above_price = None if not liquidate_above else price * liquidate_above
         liquidate_below_price = None if not liquidate_below else price * liquidate_below
 
-        self.trades.append(Trade(ticker=ticker, amount=amount))
+        self.trades.append(Trade(ticker=ticker, amount=amount*price, date=date))
 
         self.current_portfolio[ticker].add(
             Position(
@@ -204,7 +207,7 @@ class BackTester:
 
             current_date += timedelta(days=1)
     
-    def get_trades(self) -> List[Trade]:
+    def get_trades(self) -> Dict[date, List[Trade]]:
         return self.trades
     
     def get_holdings(self) -> Dict[date, Holdings]:
