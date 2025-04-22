@@ -12,15 +12,22 @@ from jose import jwt, JWTError
 from pymongo import MongoClient
 from bson import ObjectId
 
+import os
+
 from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
 
+import dotenv
+
+dotenv.load_dotenv()
+
 data_df = pd.read_csv("./backtester/data.csv")
 
 # Initialize MongoDB client
-client = MongoClient('mongodb://localhost:27017/')
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(f"{mongo_uri}")
 db = client['backtesting']
 
 app = FastAPI()

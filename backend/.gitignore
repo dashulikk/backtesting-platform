@@ -2,3 +2,4 @@ __pycache__/
 .venv/
 backtester/__pycache__/
 backtester/strategies/__pycache__/
+.env
