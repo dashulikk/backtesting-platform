@@ -42,6 +42,12 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
       if (type === 'SMAStrategy' && !parameters.days) {
         throw new Error('Days is required for SMA Strategy');
       }
+      if (type === 'RSIStrategy' && !parameters.period) {
+        throw new Error('Period is required for RSI Strategy');
+      }
+      if (type === 'VolumeMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for Volume MA Strategy');
+      }
 
       await onSubmit({
         name,
@@ -50,6 +56,10 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           ? { days: parameters.days, n: parameters.n }
           : type === 'ExampleStrategy2'
           ? { a: parameters.a, b: parameters.b }
+          : type === 'SMAStrategy'
+          ? { days: parameters.days }
+          : type === 'RSIStrategy'
+          ? { period: parameters.period }
           : { days: parameters.days }
       });
       onClose();
@@ -110,6 +120,32 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
           </Stack>
         );
+      case 'RSIStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Period"
+              description="Number of days for RSI calculation (typically 14)"
+              value={parameters.period || 14}
+              onChange={(value) => setParameters({ ...parameters, period: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
+      case 'VolumeMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              description="Number of days for volume moving average calculation"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
       default:
         return null;
     }
@@ -137,7 +173,9 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           data={[
             { value: 'ExampleStrategy', label: 'Example Strategy' },
             { value: 'ExampleStrategy2', label: 'Example Strategy 2' },
-            { value: 'SMAStrategy', label: 'SMA Strategy' }
+            { value: 'SMAStrategy', label: 'SMA Strategy' },
+            { value: 'RSIStrategy', label: 'RSI Strategy' },
+            { value: 'VolumeMAStrategy', label: 'Volume MA Strategy' }
           ]}
           required
         />
@@ -166,7 +204,9 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             disabled={!name || !type || 
                      (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
                      (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-                     (type === 'SMAStrategy' && !parameters.days)}
+                     (type === 'SMAStrategy' && !parameters.days) ||
+                     (type === 'RSIStrategy' && !parameters.period) ||
+                     (type === 'VolumeMAStrategy' && !parameters.days)}
           >
             Add Strategy
           </Button>

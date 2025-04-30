@@ -30,6 +30,14 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
         setParameters({
           days: strategy.days || 0
         });
+      } else if (strategy.type === 'RSIStrategy') {
+        setParameters({
+          period: strategy.period || 14
+        });
+      } else if (strategy.type === 'VolumeMAStrategy') {
+        setParameters({
+          days: strategy.days || 0
+        });
       }
     }
   }, [opened, strategy]);
@@ -49,6 +57,12 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
       if (strategy.type === 'SMAStrategy' && !parameters.days) {
         throw new Error('Days is required for SMA Strategy');
       }
+      if (strategy.type === 'RSIStrategy' && !parameters.period) {
+        throw new Error('Period is required for RSI Strategy');
+      }
+      if (strategy.type === 'VolumeMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for Volume MA Strategy');
+      }
 
       // Match the exact API format
       const strategyData = {
@@ -59,6 +73,10 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             ? { days: Number(parameters.days), n: Number(parameters.n) }
             : strategy.type === 'ExampleStrategy2'
             ? { a: Number(parameters.a), b: Number(parameters.b) }
+            : strategy.type === 'SMAStrategy'
+            ? { days: Number(parameters.days) }
+            : strategy.type === 'RSIStrategy'
+            ? { period: Number(parameters.period) }
             : { days: Number(parameters.days) })
         }
       };
@@ -122,6 +140,32 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             />
           </Stack>
         );
+      case 'RSIStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Period"
+              description="Number of days for RSI calculation (typically 14)"
+              value={parameters.period || 14}
+              onChange={(value) => setParameters({ ...parameters, period: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
+      case 'VolumeMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              description="Number of days for volume moving average calculation"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
       default:
         return null;
     }
@@ -163,7 +207,9 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             disabled={
               (strategy?.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
               (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-              (strategy?.type === 'SMAStrategy' && !parameters.days)
+              (strategy?.type === 'SMAStrategy' && !parameters.days) ||
+              (strategy?.type === 'RSIStrategy' && !parameters.period) ||
+              (strategy?.type === 'VolumeMAStrategy' && !parameters.days)
             }
           >
             Save Changes

@@ -19,6 +19,8 @@ from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
 from backtester.strategies.sma_strategy import SMAStrategy as BackTesterSMAStrategy
+from backtester.strategies.rsi_strategy import RSIStrategy as BackTesterRSIStrategy
+from backtester.strategies.volume_ma import VolumeMAStrategy as BackTesterVolumeMAStrategy
 
 import dotenv
 
@@ -88,13 +90,21 @@ class SMAStrategy(Strategy):
     type: Literal["SMAStrategy"]
     days: int
 
+class RSIStrategy(Strategy):
+    type: Literal["RSIStrategy"]
+    period: int
+
+class VolumeMAStrategy(Strategy):
+    type: Literal["VolumeMAStrategy"]
+    days: int
+
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
     name: str
     stocks: List[str]
     start_date: date
     end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2, SMAStrategy]]
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy, VolumeMAStrategy]]
 
 # New model for returns data
 class ReturnsData(BaseModel):
@@ -142,6 +152,18 @@ def _get_backtester_strategies(env: Environment):
         elif strategy['type'] == 'SMAStrategy':
             backtester_strategies.append(
                 BackTesterSMAStrategy(
+                    days=strategy['days']
+                )
+            )
+        elif strategy['type'] == 'RSIStrategy':
+            backtester_strategies.append(
+                BackTesterRSIStrategy(
+                    period=strategy['period']
+                )
+            )
+        elif strategy['type'] == 'VolumeMAStrategy':
+            backtester_strategies.append(
+                BackTesterVolumeMAStrategy(
                     days=strategy['days']
                 )
             )
@@ -383,7 +405,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy]
+    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy, VolumeMAStrategy]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(

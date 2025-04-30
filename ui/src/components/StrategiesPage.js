@@ -431,6 +431,8 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                         {strategy.type === 'SMAStrategy' && `days: ${strategy.days}`}
                         {strategy.type === 'ExampleStrategy' && `days: ${strategy.days}, n: ${strategy.n}`}
                         {strategy.type === 'ExampleStrategy2' && `a: ${strategy.a}, b: ${strategy.b}`}
+                        {strategy.type === 'RSIStrategy' && `period: ${strategy.period}`}
+                        {strategy.type === 'VolumeMAStrategy' && `days: ${strategy.days}`}
                       </Text>
                     </Grid.Col>
                   </Grid>
