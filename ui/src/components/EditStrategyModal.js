@@ -26,6 +26,10 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
           a: strategy.a || 0,
           b: strategy.b || 0
         });
+      } else if (strategy.type === 'SMAStrategy') {
+        setParameters({
+          days: strategy.days || 0
+        });
       }
     }
   }, [opened, strategy]);
@@ -42,6 +46,9 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
       if (strategy.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
         throw new Error('Parameters A and B are required for ExampleStrategy2');
       }
+      if (strategy.type === 'SMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for SMA Strategy');
+      }
 
       // Match the exact API format
       const strategyData = {
@@ -50,7 +57,9 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
           type: strategy.type,
           ...(strategy.type === 'ExampleStrategy'
             ? { days: Number(parameters.days), n: Number(parameters.n) }
-            : { a: Number(parameters.a), b: Number(parameters.b) })
+            : strategy.type === 'ExampleStrategy2'
+            ? { a: Number(parameters.a), b: Number(parameters.b) }
+            : { days: Number(parameters.days) })
         }
       };
 
@@ -101,6 +110,18 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             />
           </Stack>
         );
+      case 'SMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
       default:
         return null;
     }
@@ -141,7 +162,8 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             loading={loading}
             disabled={
               (strategy?.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-              (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b))
+              (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
+              (strategy?.type === 'SMAStrategy' && !parameters.days)
             }
           >
             Save Changes

@@ -48,10 +48,11 @@ function CreateEnvironmentPage({ onBack }) {
     );
   }, [searchQuery]);
 
-  // Group stocks by sector
+  // Group stocks by sector and filter out empty sectors
   const sectors = useMemo(() => {
-    return [...new Set(sp500Stocks.map(stock => stock.sector))];
-  }, []);
+    const filteredSectors = new Set(filteredStocks.map(stock => stock.sector));
+    return Array.from(filteredSectors).sort();
+  }, [filteredStocks]);
 
   const handleStockSelect = (ticker) => {
     setSelectedStocks(prev => {
@@ -181,188 +182,138 @@ function CreateEnvironmentPage({ onBack }) {
   };
 
   return (
-    <Container fluid h="100vh" bg="dark.6">
-      <form onSubmit={handleSubmit} style={{ height: "100%" }}>
-        <Stack spacing="md" h="100%" p="md">
+    <Container size="xl" p="md">
+      <form onSubmit={handleSubmit}>
+        <Stack spacing="lg">
           <Group position="apart" mb="xs">
             <Group>
               <ActionIcon onClick={onBack} size="lg" variant="subtle" color="blue">
                 <IconArrowLeft size={20} />
               </ActionIcon>
-              <Title order={2} c="gray.3">Create Environment</Title>
+              <Title order={2}>Create Environment</Title>
             </Group>
           </Group>
 
-          <Grid style={{ flex: 1, minHeight: 0 }}>
+          <Grid>
             <Grid.Col span={4}>
-              <Paper shadow="sm" p="md" bg="dark.7" style={{ height: '100%', border: '1px solid', borderColor: 'dark.4' }}>
-                <Stack spacing="lg">
+              <Paper p="md" withBorder>
+                <Stack spacing="md">
                   <TextInput
                     required
                     size="sm"
-                    label={<Text c="gray.3" size="sm" weight={500}>Environment Name</Text>}
+                    label="Environment Name"
                     value={environmentName}
                     onChange={(e) => setEnvironmentName(e.target.value)}
                     error={error && !environmentName.trim() ? 'Name is required' : null}
-                    styles={inputStyles}
                   />
 
                   <Stack spacing="xs">
                     <TextInput
-                      label={<Text c="gray.3" size="sm" weight={500}>Start Date</Text>}
+                      label="Start Date"
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       required
                       size="sm"
                       error={error && !startDate ? 'Required' : null}
-                      styles={inputStyles}
                     />
 
                     <TextInput
-                      label={<Text c="gray.3" size="sm" weight={500}>End Date</Text>}
+                      label="End Date"
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       required
                       size="sm"
                       error={error && !endDate ? 'Required' : null}
-                      styles={inputStyles}
                     />
                   </Stack>
 
-                  <Box style={{ flex: 1 }}>
-                    {selectedStocks.length > 0 && (
-                      <Paper p="xs" bg="dark.6" style={{ border: '1px solid', borderColor: 'dark.4' }}>
-                        <Stack spacing="xs">
-                          <Text size="sm" c="gray.3">Selected Stocks ({selectedStocks.length}/10):</Text>
-                          <Group spacing={8}>
-                            {selectedStocks.map(ticker => (
-                              <Badge 
-                                key={ticker}
-                                size="lg"
-                                variant="filled"
-                                color="blue"
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => handleStockSelect(ticker)}
-                              >
-                                {ticker} ×
-                              </Badge>
-                            ))}
-                          </Group>
-                        </Stack>
-                      </Paper>
-                    )}
-                  </Box>
-
-                  <Group position="apart" mt="auto">
-                    <Button variant="default" onClick={onBack}>
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      loading={loading}
-                      disabled={!environmentName.trim() || selectedStocks.length === 0 || !startDate || !endDate}
-                    >
-                      Create Environment
-                    </Button>
-                  </Group>
+                  {selectedStocks.length > 0 && (
+                    <Paper p="xs" withBorder>
+                      <Stack spacing="xs">
+                        <Text size="sm">Selected Stocks ({selectedStocks.length}/10):</Text>
+                        <Group spacing={8}>
+                          {selectedStocks.map(ticker => (
+                            <Badge 
+                              key={ticker}
+                              size="lg"
+                              variant="filled"
+                              color="blue"
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => handleStockSelect(ticker)}
+                            >
+                              {ticker} ×
+                            </Badge>
+                          ))}
+                        </Group>
+                      </Stack>
+                    </Paper>
+                  )}
                 </Stack>
               </Paper>
             </Grid.Col>
 
-            <Grid.Col span={9}>
-              <Paper shadow="sm" p="md" bg="dark.7" style={{ border: '1px solid', borderColor: 'dark.4' }}>
-                <Stack spacing="md" h="100%">
-                  <LoadingOverlay visible={loading} />
-                  
+            <Grid.Col span={8}>
+              <Paper p="md" withBorder>
+                <Stack spacing="md">
                   <TextInput
                     placeholder="Search stocks by ticker or company name..."
-                    icon={<IconSearch size={16} />}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    styles={{
-                      input: {
-                        backgroundColor: 'dark.6',
-                        borderColor: 'dark.4',
-                        color: 'gray.3'
-                      }
-                    }}
+                    icon={<IconSearch size={16} />}
+                    size="sm"
                   />
 
-                  <ScrollArea style={{ flex: 1 }}>
-                    <Stack spacing="xs">
-                      {sectors.map(sector => {
-                        const sectorStocks = filteredStocks.filter(stock => stock.sector === sector);
-                        if (sectorStocks.length === 0) return null;
-
-                        return (
-                          <Paper 
-                            key={sector} 
-                            p="xs" 
-                            bg="dark.6"
-                            style={{ border: '1px solid', borderColor: 'dark.4' }}
+                  <ScrollArea h={400}>
+                    {sectors.map(sector => (
+                      <Box key={sector} mb="md">
+                        <Group position="apart" mb="xs">
+                          <Text weight={500}>{sector}</Text>
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            onClick={() => toggleSector(sector)}
                           >
-                            <Stack spacing={0}>
-                              <Group 
-                                position="apart" 
-                                p="xs" 
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => toggleSector(sector)}
-                              >
-                                <Group spacing="xs">
-                                  {expandedSectors[sector] ? 
-                                    <IconChevronDown size={16} color="gray" /> : 
-                                    <IconChevronRight size={16} color="gray" />
-                                  }
-                                  <Text c="gray.3">{sector}</Text>
-                                </Group>
-                                <Text size="sm" c="dimmed">{sectorStocks.length} stocks</Text>
-                              </Group>
-
-                              <Collapse in={expandedSectors[sector]}>
-                                <Box pl="md">
-                                  <Table verticalSpacing="xs" highlightOnHover>
-                                    <tbody>
-                                      {sectorStocks.map((stock) => (
-                                        <tr 
-                                          key={stock.ticker}
-                                          style={{ 
-                                            cursor: !selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10 ? 'not-allowed' : 'pointer',
-                                            opacity: !selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10 ? 0.5 : 1
-                                          }}
-                                          onClick={() => handleStockSelect(stock.ticker)}
-                                        >
-                                          <td style={{ width: 30, verticalAlign: 'middle' }}>
-                                            <Checkbox
-                                              checked={selectedStocks.includes(stock.ticker)}
-                                              readOnly
-                                              disabled={!selectedStocks.includes(stock.ticker) && selectedStocks.length >= 10}
-                                              color="blue"
-                                            />
-                                          </td>
-                                          <td style={{ width: 70, verticalAlign: 'middle', fontWeight: 500, color: 'gray.3' }}>
-                                            {stock.ticker}
-                                          </td>
-                                          <td style={{ verticalAlign: 'middle', color: 'gray.4' }}>
-                                            {stock.name}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </Table>
-                                </Box>
-                              </Collapse>
-                            </Stack>
-                          </Paper>
-                        );
-                      })}
-                    </Stack>
+                            {expandedSectors[sector] ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+                          </ActionIcon>
+                        </Group>
+                        <Collapse in={expandedSectors[sector]}>
+                          <Stack spacing="xs">
+                            {filteredStocks
+                              .filter(stock => stock.sector === sector)
+                              .map(stock => (
+                                <Checkbox
+                                  key={stock.ticker}
+                                  label={`${stock.ticker} - ${stock.name}`}
+                                  checked={selectedStocks.includes(stock.ticker)}
+                                  onChange={() => handleStockSelect(stock.ticker)}
+                                  disabled={selectedStocks.length >= 10 && !selectedStocks.includes(stock.ticker)}
+                                />
+                              ))}
+                          </Stack>
+                        </Collapse>
+                      </Box>
+                    ))}
+                    {sectors.length === 0 && (
+                      <Text c="dimmed" ta="center" py="md">
+                        No stocks found matching your search
+                      </Text>
+                    )}
                   </ScrollArea>
                 </Stack>
               </Paper>
             </Grid.Col>
           </Grid>
+
+          <Group position="right" mt="md">
+            <Button variant="default" onClick={onBack}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={loading}>
+              Create Environment
+            </Button>
+          </Group>
         </Stack>
       </form>
     </Container>

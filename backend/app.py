@@ -18,6 +18,7 @@ from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
+from backtester.strategies.sma_strategy import SMAStrategy as BackTesterSMAStrategy
 
 import dotenv
 
@@ -83,13 +84,17 @@ class ExampleStrategy2(Strategy):
     a: float
     b: float
 
+class SMAStrategy(Strategy):
+    type: Literal["SMAStrategy"]
+    days: int
+
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
     name: str
     stocks: List[str]
     start_date: date
     end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2]]
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2, SMAStrategy]]
 
 # New model for returns data
 class ReturnsData(BaseModel):
@@ -132,6 +137,12 @@ def _get_backtester_strategies(env: Environment):
                 BackTesterExampleStrategy2(
                     a=strategy['a'],
                     b=strategy['b']
+                )
+            )
+        elif strategy['type'] == 'SMAStrategy':
+            backtester_strategies.append(
+                BackTesterSMAStrategy(
+                    days=strategy['days']
                 )
             )
     
@@ -372,7 +383,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-    strategy: Union[ExampleStrategy, ExampleStrategy2]
+    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(

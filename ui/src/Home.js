@@ -37,18 +37,16 @@ import {
   IconHistory,
   IconChevronRight,
   IconDatabase,
-  IconReportAnalytics
+  IconReportAnalytics,
+  IconBook
 } from '@tabler/icons-react';
-import HomePage from './components/HomePage';
-import EnvironmentsPage from './components/EnvironmentsPage';
-import StrategiesPage from './components/StrategiesPage';
-import CreateEnvironmentPage from './components/CreateEnvironmentPage';
-import BacktestingResultsPage from './components/BacktestingResultsPage';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
-function MainLink({ icon: Icon, color, label, onClick, active }) {
+function MainLink({ icon: Icon, color, label, to, active }) {
+  const navigate = useNavigate();
   return (
     <UnstyledButton
-      onClick={onClick}
+      onClick={() => navigate(to)}
       sx={(theme) => ({
         display: 'block',
         width: '100%',
@@ -74,25 +72,8 @@ function MainLink({ icon: Icon, color, label, onClick, active }) {
 export function Home() {
   const theme = useMantineTheme();
   const [opened, setOpened] = useState(false);
-  const [activePage, setActivePage] = useState('home');
   const [userMenuOpened, setUserMenuOpened] = useState(false);
-
-  const renderContent = () => {
-    switch (activePage) {
-      case 'home':
-        return <HomePage onNavigate={setActivePage} />;
-      case 'environments':
-        return <EnvironmentsPage onBack={() => setActivePage('home')} onNavigate={setActivePage} />;
-      case 'create-environment':
-        return <CreateEnvironmentPage onBack={() => setActivePage('environments')} onNavigate={setActivePage} />;
-      case 'strategies':
-        return <StrategiesPage onBack={() => setActivePage('home')} onNavigate={setActivePage} />;
-      case 'backtesting-results':
-        return <BacktestingResultsPage onBack={() => setActivePage('home')} />;
-      default:
-        return <HomePage onNavigate={setActivePage} />;
-    }
-  };
+  const location = useLocation();
 
   return (
     <AppShell
@@ -161,42 +142,49 @@ export function Home() {
             icon={IconHome}
             color="blue"
             label="Home"
-            onClick={() => setActivePage('home')}
-            active={activePage === 'home'}
+            to="/"
+            active={location.pathname === '/'}
           />
           <MainLink
             icon={IconPlus}
             color="blue"
             label="Create Environment"
-            onClick={() => setActivePage('create-environment')}
-            active={activePage === 'create-environment'}
+            to="/create-environment"
+            active={location.pathname === '/create-environment'}
           />
           <MainLink
             icon={IconDatabase}
             color="blue"
             label="Environments"
-            onClick={() => setActivePage('environments')}
-            active={activePage === 'environments'}
+            to="/environments"
+            active={location.pathname === '/environments'}
           />
           <MainLink
             icon={IconChartBar}
             color="blue"
             label="Strategies"
-            onClick={() => setActivePage('strategies')}
-            active={activePage === 'strategies'}
+            to="/strategies"
+            active={location.pathname === '/strategies'}
+          />
+          <MainLink
+            icon={IconBook}
+            color="blue"
+            label="Strategy Info"
+            to="/strategy-info"
+            active={location.pathname === '/strategy-info'}
           />
           <MainLink
             icon={IconReportAnalytics}
             color="blue"
             label="Backtesting Results"
-            onClick={() => setActivePage('backtesting-results')}
-            active={activePage === 'backtesting-results'}
+            to="/backtesting-results"
+            active={location.pathname === '/backtesting-results'}
           />
         </Stack>
       </AppShell.Navbar>
 
       <AppShell.Main style={{ overflowY: 'auto', height: 'calc(100vh - 60px)' }}>
-        {renderContent()}
+        <Outlet />
       </AppShell.Main>
     </AppShell>
   );

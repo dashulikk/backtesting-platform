@@ -39,13 +39,18 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
       if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
         throw new Error('Parameters A and B are required for ExampleStrategy2');
       }
+      if (type === 'SMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for SMA Strategy');
+      }
 
       await onSubmit({
         name,
         type,
         parameters: type === 'ExampleStrategy'
           ? { days: parameters.days, n: parameters.n }
-          : { a: parameters.a, b: parameters.b }
+          : type === 'ExampleStrategy2'
+          ? { a: parameters.a, b: parameters.b }
+          : { days: parameters.days }
       });
       onClose();
     } catch (err) {
@@ -93,6 +98,18 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
           </Stack>
         );
+      case 'SMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
       default:
         return null;
     }
@@ -119,7 +136,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           onChange={setType}
           data={[
             { value: 'ExampleStrategy', label: 'Example Strategy' },
-            { value: 'ExampleStrategy2', label: 'Example Strategy 2' }
+            { value: 'ExampleStrategy2', label: 'Example Strategy 2' },
+            { value: 'SMAStrategy', label: 'SMA Strategy' }
           ]}
           required
         />
@@ -145,8 +163,10 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           <Button 
             onClick={handleSubmit}
             loading={loading}
-            disabled={!name || !type || (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b))}
+            disabled={!name || !type || 
+                     (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
+                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
+                     (type === 'SMAStrategy' && !parameters.days)}
           >
             Add Strategy
           </Button>

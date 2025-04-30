@@ -95,8 +95,16 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
         throw new Error(errorData.detail || 'Failed to add strategy');
       }
       
-      // Refresh environments to get the updated data
-      fetchEnvironments();
+      // Update the selected environment's strategies directly
+      setSelectedEnvironment(prev => ({
+        ...prev,
+        strategies: [...prev.strategies, {
+          name: strategy.name,
+          type: strategy.type,
+          ...strategy.parameters
+        }]
+      }));
+      
       setAddModalOpened(false);
     } catch (err) {
       console.error('Error adding strategy:', err);
@@ -138,8 +146,16 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
         throw new Error(errorData?.detail || 'Failed to create updated strategy');
       }
       
-      // Refresh environments to get the updated data
-      await fetchEnvironments();
+      // Update the selected environment's strategies directly
+      setSelectedEnvironment(prev => ({
+        ...prev,
+        strategies: prev.strategies.map(strategy => 
+          strategy.name === editingStrategy.name
+            ? { ...data.strategy }
+            : strategy
+        )
+      }));
+      
       setEditingStrategy(null);
     } catch (err) {
       console.error('Error updating strategy:', err);
@@ -162,8 +178,12 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
         throw new Error('Failed to delete strategy');
       }
       
-      // Refresh environments to get the updated data
-      fetchEnvironments();
+      // Update the selected environment's strategies directly
+      setSelectedEnvironment(prev => ({
+        ...prev,
+        strategies: prev.strategies.filter(strategy => strategy.name !== strategyToDelete.name)
+      }));
+      
       setDeleteModalOpened(false);
       setStrategyToDelete(null);
     } catch (err) {
@@ -245,14 +265,6 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
             </ActionIcon>
             <Title order={2}>Strategies</Title>
           </Group>
-          {selectedEnvironment && (
-            <Button 
-              leftSection={<IconPlus size={16} />}
-              onClick={() => setAddModalOpened(true)}
-            >
-              Add Strategy
-            </Button>
-          )}
         </Group>
 
         <Stack spacing="md">
@@ -415,8 +427,10 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                   <Grid>
                     <Grid.Col span={12}>
                       <Text size="sm" weight={500}>Parameters:</Text>
-                      <Text size="sm" style={{ fontFamily: 'monospace' }}>
-                        {JSON.stringify(strategy.parameters, null, 2)}
+                      <Text size="sm">
+                        {strategy.type === 'SMAStrategy' && `days: ${strategy.days}`}
+                        {strategy.type === 'ExampleStrategy' && `days: ${strategy.days}, n: ${strategy.n}`}
+                        {strategy.type === 'ExampleStrategy2' && `a: ${strategy.a}, b: ${strategy.b}`}
                       </Text>
                     </Grid.Col>
                   </Grid>
