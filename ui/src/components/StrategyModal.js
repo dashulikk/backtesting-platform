@@ -39,13 +39,28 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
       if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
         throw new Error('Parameters A and B are required for ExampleStrategy2');
       }
+      if (type === 'SMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for SMA Strategy');
+      }
+      if (type === 'RSIStrategy' && !parameters.period) {
+        throw new Error('Period is required for RSI Strategy');
+      }
+      if (type === 'VolumeMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for Volume MA Strategy');
+      }
 
       await onSubmit({
         name,
         type,
         parameters: type === 'ExampleStrategy'
           ? { days: parameters.days, n: parameters.n }
-          : { a: parameters.a, b: parameters.b }
+          : type === 'ExampleStrategy2'
+          ? { a: parameters.a, b: parameters.b }
+          : type === 'SMAStrategy'
+          ? { days: parameters.days }
+          : type === 'RSIStrategy'
+          ? { period: parameters.period }
+          : { days: parameters.days }
       });
       onClose();
     } catch (err) {
@@ -93,6 +108,44 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
           </Stack>
         );
+      case 'SMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
+      case 'RSIStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Period"
+              description="Number of days for RSI calculation (typically 14)"
+              value={parameters.period || 14}
+              onChange={(value) => setParameters({ ...parameters, period: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
+      case 'VolumeMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              description="Number of days for volume moving average calculation"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
       default:
         return null;
     }
@@ -119,7 +172,10 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           onChange={setType}
           data={[
             { value: 'ExampleStrategy', label: 'Example Strategy' },
-            { value: 'ExampleStrategy2', label: 'Example Strategy 2' }
+            { value: 'ExampleStrategy2', label: 'Example Strategy 2' },
+            { value: 'SMAStrategy', label: 'SMA Strategy' },
+            { value: 'RSIStrategy', label: 'RSI Strategy' },
+            { value: 'VolumeMAStrategy', label: 'Volume MA Strategy' }
           ]}
           required
         />
@@ -145,8 +201,12 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           <Button 
             onClick={handleSubmit}
             loading={loading}
-            disabled={!name || !type || (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b))}
+            disabled={!name || !type || 
+                     (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
+                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
+                     (type === 'SMAStrategy' && !parameters.days) ||
+                     (type === 'RSIStrategy' && !parameters.period) ||
+                     (type === 'VolumeMAStrategy' && !parameters.days)}
           >
             Add Strategy
           </Button>

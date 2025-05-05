@@ -1,102 +1,74 @@
-import { Container, Title, Text, Button, Group, Stack, Card, ThemeIcon, Grid } from '@mantine/core';
-import { IconChartLine, IconChartBar, IconChartCandle } from '@tabler/icons-react';
+import React from 'react';
+import { Container, Title, Text, Button, Group, Stack, Card, ThemeIcon, Grid, SimpleGrid } from '@mantine/core';
+import { IconChartLine, IconChartBar, IconChartCandle, IconDatabase, IconReportAnalytics, IconBook } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
-const HomePage = ({ onNavigate }) => {
+const HomePage = () => {
+  const navigate = useNavigate();
+
+  const features = [
+    {
+      title: 'Environments',
+      description: 'Create and manage your trading environments with custom stock selections and date ranges.',
+      icon: IconDatabase,
+      path: '/environments',
+    },
+    {
+      title: 'Strategies',
+      description: 'Configure and test different trading strategies with customizable parameters.',
+      icon: IconChartBar,
+      path: '/strategies',
+    },
+    {
+      title: 'Strategy Info',
+      description: 'Learn about available trading strategies, their parameters, and how they work.',
+      icon: IconBook,
+      path: '/strategy-info',
+    },
+    {
+      title: 'Backtesting Results',
+      description: 'Analyze the performance of your strategies with detailed reports and visualizations.',
+      icon: IconReportAnalytics,
+      path: '/backtesting-results',
+    },
+  ];
+
   return (
-    <Container size="xl" py="xl" style={{ overflowY: 'auto', height: '100%' }}>
+    <Container size="xl" p="md">
       <Stack spacing="xl">
-        {/* Hero Section */}
-        <Card withBorder p="xl">
-          <Stack spacing="md">
-            <Title order={1}>Welcome to Backtesting Platform</Title>
-            <Text size="lg" color="dimmed">
-              Test and optimize your trading strategies with our powerful backtesting engine.
-            </Text>
-            <Group>
-              <Button size="lg" onClick={() => onNavigate('environments')}>
-                View Environments
-              </Button>
-            </Group>
-          </Stack>
-        </Card>
+        <Group>
+          <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+            <IconChartLine size={20} />
+          </ThemeIcon>
+          <Title order={2}>Welcome to Backtesting Platform</Title>
+        </Group>
 
-        {/* Features Section */}
-        <Grid>
-          <Grid.Col span={4}>
-            <Card withBorder p="md">
-              <Stack spacing="md">
-                <ThemeIcon size="lg" radius="md" variant="light" color="blue">
-                  <IconChartLine size={20} />
-                </ThemeIcon>
-                <Title order={3}>Strategy Testing</Title>
-                <Text color="dimmed">
-                  Test your trading strategies against historical market data to evaluate their performance.
-                </Text>
-              </Stack>
-            </Card>
-          </Grid.Col>
-          <Grid.Col span={4}>
-            <Card withBorder p="md">
-              <Stack spacing="md">
-                <ThemeIcon size="lg" radius="md" variant="light" color="blue">
-                  <IconChartBar size={20} />
-                </ThemeIcon>
-                <Title order={3}>Strategy Optimization</Title>
-                <Text color="dimmed">
-                  Optimize your strategy parameters to find the best combination for maximum returns.
-                </Text>
-              </Stack>
-            </Card>
-          </Grid.Col>
-          <Grid.Col span={4}>
-            <Card withBorder p="md">
-              <Stack spacing="md">
-                <ThemeIcon size="lg" radius="md" variant="light" color="blue">
-                  <IconChartCandle size={20} />
-                </ThemeIcon>
-                <Title order={3}>Performance Analysis</Title>
-                <Text color="dimmed">
-                  Analyze your strategy's performance with detailed metrics and visualizations.
-                </Text>
-              </Stack>
-            </Card>
-          </Grid.Col>
-        </Grid>
+        <Text size="lg" color="dimmed">
+          Create trading environments, configure strategies, and analyze backtesting results to optimize your trading approach.
+        </Text>
 
-        {/* Getting Started Section */}
-        <Card withBorder p="xl">
-          <Stack spacing="md">
-            <Title order={2}>Getting Started</Title>
-            <Grid>
-              <Grid.Col span={6}>
-                <Card withBorder p="md">
-                  <Stack spacing="md">
-                    <Title order={3}>View Environments</Title>
-                    <Text color="dimmed">
-                      Browse your existing environments and their associated strategies.
-                    </Text>
-                    <Button onClick={() => onNavigate('environments')}>
-                      Go to Environments
-                    </Button>
-                  </Stack>
-                </Card>
-              </Grid.Col>
-              <Grid.Col span={6}>
-                <Card withBorder p="md">
-                  <Stack spacing="md">
-                    <Title order={3}>Manage Strategies</Title>
-                    <Text color="dimmed">
-                      View and manage your trading strategies across different environments.
-                    </Text>
-                    <Button onClick={() => onNavigate('strategies')}>
-                      Go to Strategies
-                    </Button>
-                  </Stack>
-                </Card>
-              </Grid.Col>
-            </Grid>
-          </Stack>
-        </Card>
+        <SimpleGrid cols={2} spacing="md">
+          {features.map((feature, index) => (
+            <Card key={index} p="md" withBorder>
+              <Stack spacing="md">
+                <Group>
+                  <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                    <feature.icon size={20} />
+                  </ThemeIcon>
+                  <Title order={3}>{feature.title}</Title>
+                </Group>
+                <Text>{feature.description}</Text>
+                <Button
+                  variant="light"
+                  onClick={() => navigate(feature.path)}
+                  leftIcon={<feature.icon size={16} />}
+                >
+                  Go to {feature.title}
+                </Button>
+              </Stack>
+            </Card>
+          ))}
+        </SimpleGrid>
       </Stack>
     </Container>
   );
