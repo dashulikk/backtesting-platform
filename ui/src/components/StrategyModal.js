@@ -47,6 +47,12 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
       if (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) {
         throw new Error('All parameters are required for Percentage SMA Strategy');
       }
+      if (type === 'RSIStrategy' && !parameters.period) {
+        throw new Error('Period is required for RSI Strategy');
+      }
+      if (type === 'VolumeMAStrategy' && !parameters.days) {
+        throw new Error('Days is required for Volume MA Strategy');
+      }
 
       // Create strategy data object
       const strategyData = {
@@ -143,6 +149,32 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
                 { value: 'long', label: 'Long' },
                 { value: 'short', label: 'Short' }
               ]}
+              required
+            />
+          </Stack>
+        );
+      case 'RSIStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Period"
+              description="Number of days for RSI calculation (typically 14)"
+              value={parameters.period || 14}
+              onChange={(value) => setParameters({ ...parameters, period: value })}
+              min={1}
+              required
+            />
+          </Stack>
+        );
+      case 'VolumeMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              description="Number of days for volume moving average calculation"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
               required
             />
           </Stack>

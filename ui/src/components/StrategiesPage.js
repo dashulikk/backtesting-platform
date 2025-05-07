@@ -454,10 +454,18 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                     <Grid.Col span={12}>
                       <Text size="sm" fw={500}>Parameters:</Text>
                       <Text size="sm">
+<<<<<<< HEAD
                         {strategy.type === 'PercentageSMAStrategy' && 
                           `days: ${strategy.days}, percentage_change: ${strategy.percentage_change}%, direction: ${strategy.direction}, position_type: ${strategy.position_type}`}
                         {strategy.type === 'RSIStrategy' && 
                           `period: ${strategy.period}, rsi_threshold: ${strategy.rsi_threshold}, position_type: ${strategy.position_type}`}
+=======
+                        {strategy.type === 'SMAStrategy' && `days: ${strategy.days}`}
+                        {strategy.type === 'ExampleStrategy' && `days: ${strategy.days}, n: ${strategy.n}`}
+                        {strategy.type === 'ExampleStrategy2' && `a: ${strategy.a}, b: ${strategy.b}`}
+                        {strategy.type === 'RSIStrategy' && `period: ${strategy.period}`}
+                        {strategy.type === 'VolumeMAStrategy' && `days: ${strategy.days}`}
+>>>>>>> 570b26107331c9dd9ec5b0fe173298c55abd8646
                       </Text>
                     </Grid.Col>
                   </Grid>
