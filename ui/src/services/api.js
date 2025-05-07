@@ -73,7 +73,17 @@ class Api {
                 throw new Error('Server returned invalid data format');
             }
 
-            return data;
+            // Filter out any strategies that don't match our expected types
+            const validData = data.map(env => ({
+                ...env,
+                strategies: env.strategies.filter(s => 
+                    s.type === 'ExampleStrategy' || 
+                    s.type === 'ExampleStrategy2' || 
+                    s.type === 'SMAStrategy'
+                )
+            }));
+
+            return validData;
         } catch (error) {
             console.error('Failed to fetch environments:', error);
             throw error;
@@ -162,67 +172,6 @@ class Api {
         console.log('Deleting environment:', {
             url,
             envName
-        });
-
-        const response = await fetch(url, {
-            method: 'DELETE',
-            headers: this.getHeaders(),
-            credentials: 'include'
-        });
-
-        await this.handleResponse(response);
-    }
-
-    async getSimulation(envName, simulationName) {
-        const url = `${this.baseUrl}/${envName}/${simulationName}`;
-        console.log('Fetching simulation:', { url });
-        
-        const response = await fetch(url, {
-            headers: this.getHeaders(),
-            credentials: 'include'
-        });
-        return this.handleResponse(response);
-    }
-
-    async createSimulation(envName, data) {
-        const url = `${this.baseUrl}/${envName}/simulations`;
-        console.log('Creating simulation:', {
-            url,
-            envName,
-            data
-        });
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: this.getHeaders(),
-                body: JSON.stringify(data),
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Failed to create simulation:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    error: errorText
-                });
-                throw new Error(`Failed to create simulation: ${errorText}`);
-            }
-
-            await this.handleResponse(response);
-            console.log('Simulation created successfully');
-        } catch (error) {
-            console.error('Error in createSimulation:', error);
-            throw error;
-        }
-    }
-
-    async deleteSimulation(envName, simulationName) {
-        const url = `${this.baseUrl}/${envName}/simulations/${simulationName}`;
-        console.log('Deleting simulation:', {
-            url,
-            simulationName
         });
 
         const response = await fetch(url, {

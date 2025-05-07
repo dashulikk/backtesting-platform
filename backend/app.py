@@ -87,6 +87,12 @@ class ExampleStrategy2(Strategy):
 class SMAStrategy(Strategy):
     type: Literal["SMAStrategy"]
     days: int
+    sma: int  # Short-term SMA period
+    description: str = "Simple Moving Average strategy that uses two moving averages to generate signals"
+
+class RSIStrategy(Strategy):
+    type: Literal["RSIStrategy"]
+    period: int
 
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
@@ -124,7 +130,6 @@ class BacktestResponse(BaseModel):
 def _get_backtester_strategies(env: Environment):
     backtester_strategies = []
     for strategy in env['strategies']:
-        print(strategy)
         if strategy['type'] == 'ExampleStrategy':
             backtester_strategies.append(
                 BackTesterExampleStrategy1(
@@ -142,7 +147,8 @@ def _get_backtester_strategies(env: Environment):
         elif strategy['type'] == 'SMAStrategy':
             backtester_strategies.append(
                 BackTesterSMAStrategy(
-                    days=strategy['days']
+                    days=strategy['days'],
+                    sma=strategy['sma']
                 )
             )
     
@@ -284,7 +290,31 @@ async def get_environments(current_user: User = Depends(get_current_user)):
     """Get all environments for the authenticated user."""
     user_id = current_user.username
     envs = list(db.environments.find({"user_id": user_id}))
-    return [convert_objectid(env) for env in envs]
+    
+    # Convert MongoDB documents to Pydantic models
+    converted_envs = []
+    for env in envs:
+        # Ensure strategies have the correct type field
+        strategies = []
+        for strategy in env.get('strategies', []):
+            if strategy.get('type') == 'SMAStrategy':
+                # Ensure SMA strategy has both days and sma parameters
+                if 'sma' not in strategy:
+                    strategy['sma'] = 10  # Default value if missing
+                strategies.append(SMAStrategy(**strategy))
+            elif strategy.get('type') == 'ExampleStrategy':
+                strategies.append(ExampleStrategy(**strategy))
+            elif strategy.get('type') == 'ExampleStrategy2':
+                strategies.append(ExampleStrategy2(**strategy))
+        
+        # Convert dates from strings to date objects
+        env['start_date'] = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
+        env['end_date'] = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
+        env['strategies'] = strategies
+        
+        converted_envs.append(Environment(**env))
+    
+    return converted_envs
 
 @app.get("/{env_name}", response_model=Environment)
 async def get_environment(
@@ -383,7 +413,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy]
+    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(
