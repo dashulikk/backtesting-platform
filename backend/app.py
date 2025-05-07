@@ -18,7 +18,8 @@ from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
-from backtester.strategies.sma_strategy import SMAStrategy as BackTesterSMAStrategy
+from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
+
 
 import dotenv
 
@@ -84,15 +85,13 @@ class ExampleStrategy2(Strategy):
     a: float
     b: float
 
-class SMAStrategy(Strategy):
-    type: Literal["SMAStrategy"]
+class PercentageSMAStrategy(Strategy):
+    type: Literal["PercentageSMAStrategy"]
     days: int
-    sma: int  # Short-term SMA period
-    description: str = "Simple Moving Average strategy that uses two moving averages to generate signals"
-
-class RSIStrategy(Strategy):
-    type: Literal["RSIStrategy"]
-    period: int
+    percentage_change: float
+    direction: Literal["drop", "rise"]
+    position_type: Literal["long", "short"]
+    description: str = "SMA strategy that triggers trades based on percentage deviation from SMA"
 
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
@@ -100,7 +99,7 @@ class Environment(BaseModel):
     stocks: List[str]
     start_date: date
     end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2, SMAStrategy]]
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy]]
 
 # New model for returns data
 class ReturnsData(BaseModel):
@@ -144,11 +143,13 @@ def _get_backtester_strategies(env: Environment):
                     b=strategy['b']
                 )
             )
-        elif strategy['type'] == 'SMAStrategy':
+        elif strategy['type'] == 'PercentageSMAStrategy':
             backtester_strategies.append(
-                BackTesterSMAStrategy(
+                BackTesterPercentageSMAStrategy(
                     days=strategy['days'],
-                    sma=strategy['sma']
+                    percentage_change=strategy['percentage_change'],
+                    direction=strategy['direction'],
+                    position_type=strategy['position_type']
                 )
             )
     
@@ -297,15 +298,13 @@ async def get_environments(current_user: User = Depends(get_current_user)):
         # Ensure strategies have the correct type field
         strategies = []
         for strategy in env.get('strategies', []):
-            if strategy.get('type') == 'SMAStrategy':
-                # Ensure SMA strategy has both days and sma parameters
-                if 'sma' not in strategy:
-                    strategy['sma'] = 10  # Default value if missing
-                strategies.append(SMAStrategy(**strategy))
-            elif strategy.get('type') == 'ExampleStrategy':
+            strategy_type = strategy.get('type')
+            if strategy_type == 'ExampleStrategy':
                 strategies.append(ExampleStrategy(**strategy))
-            elif strategy.get('type') == 'ExampleStrategy2':
+            elif strategy_type == 'ExampleStrategy2':
                 strategies.append(ExampleStrategy2(**strategy))
+            elif strategy_type == 'PercentageSMAStrategy':
+                strategies.append(PercentageSMAStrategy(**strategy))
         
         # Convert dates from strings to date objects
         env['start_date'] = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
@@ -413,7 +412,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy]
+    strategy: Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(
@@ -467,10 +466,13 @@ async def add_strategy(
             detail="Strategy with this name already exists in this environment"
         )
     
+    # Convert strategy to dict and ensure all fields are present
+    strategy_dict = request.strategy.dict()
+    
     # Add the strategy
     db.environments.update_one(
         {"_id": env["_id"]},
-        {"$push": {"strategies": request.strategy.dict()}}
+        {"$push": {"strategies": strategy_dict}}
     )
     
     return Response(status_code=status.HTTP_200_OK)

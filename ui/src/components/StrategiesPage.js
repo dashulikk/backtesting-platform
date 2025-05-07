@@ -74,19 +74,14 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
     if (!selectedEnvironment) return;
     
     try {
+      console.log('Adding strategy:', strategy); // Debug log
       const response = await fetch(`http://localhost:8000/${encodeURIComponent(selectedEnvironment.name)}/strategies`, {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer test-token-for-user1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          strategy: {
-            name: strategy.name,
-            type: strategy.type,
-            ...strategy.parameters
-          }
-        }),
+        body: JSON.stringify(strategy),
       });
       
       if (!response.ok) {
@@ -98,11 +93,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       // Update the selected environment's strategies directly
       setSelectedEnvironment(prev => ({
         ...prev,
-        strategies: [...prev.strategies, {
-          name: strategy.name,
-          type: strategy.type,
-          ...strategy.parameters
-        }]
+        strategies: [...prev.strategies, strategy.strategy]
       }));
       
       setAddModalOpened(false);
@@ -428,9 +419,10 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                     <Grid.Col span={12}>
                       <Text size="sm" weight={500}>Parameters:</Text>
                       <Text size="sm">
-                        {strategy.type === 'SMAStrategy' && `days: ${strategy.days}`}
                         {strategy.type === 'ExampleStrategy' && `days: ${strategy.days}, n: ${strategy.n}`}
                         {strategy.type === 'ExampleStrategy2' && `a: ${strategy.a}, b: ${strategy.b}`}
+                        {strategy.type === 'PercentageSMAStrategy' && 
+                          `days: ${strategy.days}, percentage_change: ${strategy.percentage_change}%, direction: ${strategy.direction}, position_type: ${strategy.position_type}`}
                       </Text>
                     </Grid.Col>
                   </Grid>

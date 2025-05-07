@@ -6,6 +6,7 @@ import {
   Stack,
   Group,
   Text,
+  Select,
 } from '@mantine/core';
 
 const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
@@ -30,6 +31,13 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
         setParameters({
           days: strategy.days || 0
         });
+      } else if (strategy.type === 'PercentageSMAStrategy') {
+        setParameters({
+          days: strategy.days || 0,
+          percentage_change: strategy.percentage_change || 0,
+          direction: strategy.direction || '',
+          position_type: strategy.position_type || ''
+        });
       }
     }
   }, [opened, strategy]);
@@ -49,6 +57,9 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
       if (strategy.type === 'SMAStrategy' && !parameters.days) {
         throw new Error('Days is required for SMA Strategy');
       }
+      if (strategy.type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) {
+        throw new Error('All parameters are required for Percentage SMA Strategy');
+      }
 
       // Match the exact API format
       const strategyData = {
@@ -59,7 +70,14 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             ? { days: Number(parameters.days), n: Number(parameters.n) }
             : strategy.type === 'ExampleStrategy2'
             ? { a: Number(parameters.a), b: Number(parameters.b) }
-            : { days: Number(parameters.days) })
+            : strategy.type === 'SMAStrategy'
+            ? { days: Number(parameters.days) }
+            : { 
+                days: Number(parameters.days),
+                percentage_change: Number(parameters.percentage_change),
+                direction: parameters.direction,
+                position_type: parameters.position_type
+              })
         }
       };
 
@@ -110,7 +128,7 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             />
           </Stack>
         );
-      case 'SMAStrategy':
+      case 'PercentageSMAStrategy':
         return (
           <Stack spacing="md">
             <NumberInput
@@ -118,6 +136,34 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
               value={parameters.days || 0}
               onChange={(value) => setParameters({ ...parameters, days: value })}
               min={1}
+              required
+            />
+            <NumberInput
+              label="Percentage Change"
+              value={parameters.percentage_change || 0}
+              onChange={(value) => setParameters({ ...parameters, percentage_change: value })}
+              min={0}
+              precision={2}
+              required
+            />
+            <Select
+              label="Direction"
+              value={parameters.direction || ''}
+              onChange={(value) => setParameters({ ...parameters, direction: value })}
+              data={[
+                { value: 'drop', label: 'Drop' },
+                { value: 'rise', label: 'Rise' }
+              ]}
+              required
+            />
+            <Select
+              label="Position Type"
+              value={parameters.position_type || ''}
+              onChange={(value) => setParameters({ ...parameters, position_type: value })}
+              data={[
+                { value: 'long', label: 'Long' },
+                { value: 'short', label: 'Short' }
+              ]}
               required
             />
           </Stack>
@@ -163,7 +209,8 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             disabled={
               (strategy?.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
               (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-              (strategy?.type === 'SMAStrategy' && !parameters.days)
+              (strategy?.type === 'SMAStrategy' && !parameters.days) ||
+              (strategy?.type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type))
             }
           >
             Save Changes

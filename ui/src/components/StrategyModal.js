@@ -39,21 +39,32 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
       if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
         throw new Error('Parameters A and B are required for ExampleStrategy2');
       }
-      if (type === 'SMAStrategy' && !parameters.days) {
-        throw new Error('Days is required for SMA Strategy');
+      if (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) {
+        throw new Error('All parameters are required for Percentage SMA Strategy');
       }
 
-      await onSubmit({
-        name,
-        type,
-        parameters: type === 'ExampleStrategy'
-          ? { days: parameters.days, n: parameters.n }
-          : type === 'ExampleStrategy2'
-          ? { a: parameters.a, b: parameters.b }
-          : { days: parameters.days }
-      });
+      const strategyData = {
+        strategy: {
+          name,
+          type,
+          ...(type === 'ExampleStrategy'
+            ? { days: Number(parameters.days), n: Number(parameters.n) }
+            : type === 'ExampleStrategy2'
+            ? { a: Number(parameters.a), b: Number(parameters.b) }
+            : { 
+                days: Number(parameters.days),
+                percentage_change: Number(parameters.percentage_change),
+                direction: parameters.direction,
+                position_type: parameters.position_type
+              })
+        }
+      };
+
+      console.log('Submitting strategy data:', strategyData); // Debug log
+      await onSubmit(strategyData);
       onClose();
     } catch (err) {
+      console.error('Error in handleSubmit:', err); // Debug log
       setError(err.message);
     } finally {
       setLoading(false);
@@ -110,6 +121,46 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
           </Stack>
         );
+      case 'PercentageSMAStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Days"
+              value={parameters.days || 0}
+              onChange={(value) => setParameters({ ...parameters, days: value })}
+              min={1}
+              required
+            />
+            <NumberInput
+              label="Percentage Change"
+              value={parameters.percentage_change || 0}
+              onChange={(value) => setParameters({ ...parameters, percentage_change: value })}
+              min={0}
+              precision={2}
+              required
+            />
+            <Select
+              label="Direction"
+              value={parameters.direction || ''}
+              onChange={(value) => setParameters({ ...parameters, direction: value })}
+              data={[
+                { value: 'drop', label: 'Drop' },
+                { value: 'rise', label: 'Rise' }
+              ]}
+              required
+            />
+            <Select
+              label="Position Type"
+              value={parameters.position_type || ''}
+              onChange={(value) => setParameters({ ...parameters, position_type: value })}
+              data={[
+                { value: 'long', label: 'Long' },
+                { value: 'short', label: 'Short' }
+              ]}
+              required
+            />
+          </Stack>
+        );
       default:
         return null;
     }
@@ -137,7 +188,7 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           data={[
             { value: 'ExampleStrategy', label: 'Example Strategy' },
             { value: 'ExampleStrategy2', label: 'Example Strategy 2' },
-            { value: 'SMAStrategy', label: 'SMA Strategy' }
+            { value: 'PercentageSMAStrategy', label: 'Percentage SMA Strategy' }
           ]}
           required
         />
@@ -166,7 +217,7 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             disabled={!name || !type || 
                      (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
                      (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-                     (type === 'SMAStrategy' && !parameters.days)}
+                     (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type))}
           >
             Add Strategy
           </Button>

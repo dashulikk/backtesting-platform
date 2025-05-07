@@ -49,7 +49,10 @@ class BackTester:
         liquidate_below: Optional[float],
         liquidate_above: Optional[float],
     ):
-        available_cash_to_buy = self.current_cash * exposure
+        # Calculate available cash considering all current positions
+        total_portfolio_value = self._get_portfolio_value(self.current_portfolio, date)
+        total_assets = self.current_cash + total_portfolio_value
+        available_cash_to_buy = total_assets * exposure
 
         # Need at least 1 cent to trade
         if available_cash_to_buy <= 0.01:
@@ -86,7 +89,10 @@ class BackTester:
         liquidate_below: Optional[float],
         liquidate_above: Optional[float],
     ):
-        available_cash_to_short = self.current_cash * exposure
+        # Calculate available cash considering all current positions
+        total_portfolio_value = self._get_portfolio_value(self.current_portfolio, date)
+        total_assets = self.current_cash + total_portfolio_value
+        available_cash_to_short = total_assets * exposure
 
         # Need at least 1 cent to trade
         if available_cash_to_short <= 0.01:
