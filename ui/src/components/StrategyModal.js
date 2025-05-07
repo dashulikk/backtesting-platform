@@ -28,40 +28,35 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
   }, [opened]);
 
   const handleSubmit = async () => {
+    if (!name || !type) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate required parameters based on strategy type
+    if (type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type)) {
+      setError('Please fill in all required parameters');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       // Validate required fields based on strategy type
-      if (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) {
-        throw new Error('Days and N are required for ExampleStrategy');
-      }
-      if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
-        throw new Error('Parameters A and B are required for ExampleStrategy2');
-      }
       if (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) {
         throw new Error('All parameters are required for Percentage SMA Strategy');
       }
 
+      // Create strategy data object
       const strategyData = {
-        strategy: {
-          name,
-          type,
-          ...(type === 'ExampleStrategy'
-            ? { days: Number(parameters.days), n: Number(parameters.n) }
-            : type === 'ExampleStrategy2'
-            ? { a: Number(parameters.a), b: Number(parameters.b) }
-            : { 
-                days: Number(parameters.days),
-                percentage_change: Number(parameters.percentage_change),
-                direction: parameters.direction,
-                position_type: parameters.position_type
-              })
-        }
+        name,
+        type,
+        ...parameters
       };
 
       console.log('Submitting strategy data:', strategyData); // Debug log
-      await onSubmit(strategyData);
+      await onSubmit({ strategy: strategyData });
       onClose();
     } catch (err) {
       console.error('Error in handleSubmit:', err); // Debug log
@@ -73,59 +68,12 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
 
   const renderParameterInputs = () => {
     switch (type) {
-      case 'ExampleStrategy':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Days"
-              value={parameters.days || 0}
-              onChange={(value) => setParameters({ ...parameters, days: value })}
-              min={1}
-              required
-            />
-            <NumberInput
-              label="N"
-              value={parameters.n || 0}
-              onChange={(value) => setParameters({ ...parameters, n: value })}
-              min={1}
-              required
-            />
-          </Stack>
-        );
-      case 'ExampleStrategy2':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Parameter A"
-              value={parameters.a || 0}
-              onChange={(value) => setParameters({ ...parameters, a: value })}
-              required
-            />
-            <NumberInput
-              label="Parameter B"
-              value={parameters.b || 0}
-              onChange={(value) => setParameters({ ...parameters, b: value })}
-              required
-            />
-          </Stack>
-        );
-      case 'SMAStrategy':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Days"
-              value={parameters.days || 0}
-              onChange={(value) => setParameters({ ...parameters, days: value })}
-              min={1}
-              required
-            />
-          </Stack>
-        );
       case 'PercentageSMAStrategy':
         return (
           <Stack spacing="md">
             <NumberInput
               label="Days"
+              description="Number of days to calculate the Simple Moving Average"
               value={parameters.days || 0}
               onChange={(value) => setParameters({ ...parameters, days: value })}
               min={1}
@@ -133,6 +81,7 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
             <NumberInput
               label="Percentage Change"
+              description="Minimum percentage deviation from SMA to trigger a trade"
               value={parameters.percentage_change || 0}
               onChange={(value) => setParameters({ ...parameters, percentage_change: value })}
               min={0}
@@ -141,6 +90,7 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
             <Select
               label="Direction"
+              description="Whether to enter when price drops below or rises above SMA"
               value={parameters.direction || ''}
               onChange={(value) => setParameters({ ...parameters, direction: value })}
               data={[
@@ -151,6 +101,42 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             />
             <Select
               label="Position Type"
+              description="Type of position to take (Long or Short)"
+              value={parameters.position_type || ''}
+              onChange={(value) => setParameters({ ...parameters, position_type: value })}
+              data={[
+                { value: 'long', label: 'Long' },
+                { value: 'short', label: 'Short' }
+              ]}
+              required
+            />
+          </Stack>
+        );
+      case 'RSIStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Period"
+              description="Number of days used to calculate RSI (typical value: 14)"
+              value={parameters.period || 0}
+              onChange={(value) => setParameters({ ...parameters, period: value })}
+              min={1}
+              max={100}
+              required
+            />
+            <NumberInput
+              label="RSI Threshold"
+              description="RSI level used to trigger entry. Values below 30 indicate oversold conditions."
+              value={parameters.rsi_threshold || 0}
+              onChange={(value) => setParameters({ ...parameters, rsi_threshold: value })}
+              min={0}
+              max={100}
+              precision={1}
+              required
+            />
+            <Select
+              label="Position Type"
+              description="Select LONG to buy in oversold conditions or SHORT to sell in overbought conditions."
               value={parameters.position_type || ''}
               onChange={(value) => setParameters({ ...parameters, position_type: value })}
               data={[
@@ -186,9 +172,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           value={type}
           onChange={setType}
           data={[
-            { value: 'ExampleStrategy', label: 'Example Strategy' },
-            { value: 'ExampleStrategy2', label: 'Example Strategy 2' },
-            { value: 'PercentageSMAStrategy', label: 'Percentage SMA Strategy' }
+            { value: 'PercentageSMAStrategy', label: 'Percentage SMA Strategy' },
+            { value: 'RSIStrategy', label: 'RSI Strategy' }
           ]}
           required
         />
@@ -196,18 +181,18 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
         {type && (
           <>
             <Divider />
-            <Text weight={500}>Parameters</Text>
+            <Text fw={500}>Parameters</Text>
             {renderParameterInputs()}
           </>
         )}
 
         {error && (
-          <Text color="red" size="sm">
+          <Text c="red" size="sm">
             {error}
           </Text>
         )}
 
-        <Group position="right" mt="md">
+        <Group justify="flex-end" mt="md">
           <Button variant="light" onClick={onClose}>
             Cancel
           </Button>
@@ -215,9 +200,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             onClick={handleSubmit}
             loading={loading}
             disabled={!name || !type || 
-                     (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-                     (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type))}
+                     (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) ||
+                     (type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type))}
           >
             Add Strategy
           </Button>

@@ -16,26 +16,17 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
 
   useEffect(() => {
     if (opened && strategy) {
-      // Extract parameters based on strategy type
-      if (strategy.type === 'ExampleStrategy') {
-        setParameters({
-          days: strategy.days || 0,
-          n: strategy.n || 0
-        });
-      } else if (strategy.type === 'ExampleStrategy2') {
-        setParameters({
-          a: strategy.a || 0,
-          b: strategy.b || 0
-        });
-      } else if (strategy.type === 'SMAStrategy') {
-        setParameters({
-          days: strategy.days || 0
-        });
-      } else if (strategy.type === 'PercentageSMAStrategy') {
+      if (strategy.type === 'PercentageSMAStrategy') {
         setParameters({
           days: strategy.days || 0,
           percentage_change: strategy.percentage_change || 0,
           direction: strategy.direction || '',
+          position_type: strategy.position_type || ''
+        });
+      } else if (strategy.type === 'RSIStrategy') {
+        setParameters({
+          period: strategy.period || 0,
+          rsi_threshold: strategy.rsi_threshold || 0,
           position_type: strategy.position_type || ''
         });
       }
@@ -43,22 +34,21 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
   }, [opened, strategy]);
 
   const handleSubmit = async () => {
+    if (!strategy.name) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       // Validate required fields based on strategy type
-      if (strategy.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) {
-        throw new Error('Days and N are required for ExampleStrategy');
-      }
-      if (strategy.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
-        throw new Error('Parameters A and B are required for ExampleStrategy2');
-      }
-      if (strategy.type === 'SMAStrategy' && !parameters.days) {
-        throw new Error('Days is required for SMA Strategy');
-      }
       if (strategy.type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) {
         throw new Error('All parameters are required for Percentage SMA Strategy');
+      }
+      if (strategy.type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type)) {
+        throw new Error('All parameters are required for RSI Strategy');
       }
 
       // Match the exact API format
@@ -66,18 +56,7 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
         strategy: {
           name: strategy.name,
           type: strategy.type,
-          ...(strategy.type === 'ExampleStrategy'
-            ? { days: Number(parameters.days), n: Number(parameters.n) }
-            : strategy.type === 'ExampleStrategy2'
-            ? { a: Number(parameters.a), b: Number(parameters.b) }
-            : strategy.type === 'SMAStrategy'
-            ? { days: Number(parameters.days) }
-            : { 
-                days: Number(parameters.days),
-                percentage_change: Number(parameters.percentage_change),
-                direction: parameters.direction,
-                position_type: parameters.position_type
-              })
+          ...parameters
         }
       };
 
@@ -91,43 +70,9 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
   };
 
   const renderParameterInputs = () => {
-    switch (strategy?.type) {
-      case 'ExampleStrategy':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Days"
-              value={parameters.days || 0}
-              onChange={(value) => setParameters({ ...parameters, days: value })}
-              min={1}
-              required
-            />
-            <NumberInput
-              label="N"
-              value={parameters.n || 0}
-              onChange={(value) => setParameters({ ...parameters, n: value })}
-              min={1}
-              required
-            />
-          </Stack>
-        );
-      case 'ExampleStrategy2':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Parameter A"
-              value={parameters.a || 0}
-              onChange={(value) => setParameters({ ...parameters, a: value })}
-              required
-            />
-            <NumberInput
-              label="Parameter B"
-              value={parameters.b || 0}
-              onChange={(value) => setParameters({ ...parameters, b: value })}
-              required
-            />
-          </Stack>
-        );
+    if (!strategy) return null;
+
+    switch (strategy.type) {
       case 'PercentageSMAStrategy':
         return (
           <Stack spacing="md">
@@ -158,6 +103,41 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             />
             <Select
               label="Position Type"
+              value={parameters.position_type || ''}
+              onChange={(value) => setParameters({ ...parameters, position_type: value })}
+              data={[
+                { value: 'long', label: 'Long' },
+                { value: 'short', label: 'Short' }
+              ]}
+              required
+            />
+          </Stack>
+        );
+      case 'RSIStrategy':
+        return (
+          <Stack spacing="md">
+            <NumberInput
+              label="Period"
+              description="Number of days used to calculate RSI (typical value: 14)"
+              value={parameters.period || 0}
+              onChange={(value) => setParameters({ ...parameters, period: value })}
+              min={1}
+              max={100}
+              required
+            />
+            <NumberInput
+              label="RSI Threshold"
+              description="RSI level used to trigger entry. Values below 30 indicate oversold conditions."
+              value={parameters.rsi_threshold || 0}
+              onChange={(value) => setParameters({ ...parameters, rsi_threshold: value })}
+              min={0}
+              max={100}
+              precision={1}
+              required
+            />
+            <Select
+              label="Position Type"
+              description="Select LONG to buy in oversold conditions or SHORT to sell in overbought conditions."
               value={parameters.position_type || ''}
               onChange={(value) => setParameters({ ...parameters, position_type: value })}
               data={[
@@ -207,10 +187,8 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             onClick={handleSubmit}
             loading={loading}
             disabled={
-              (strategy?.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-              (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-              (strategy?.type === 'SMAStrategy' && !parameters.days) ||
-              (strategy?.type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type))
+              (strategy?.type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) ||
+              (strategy?.type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type))
             }
           >
             Save Changes

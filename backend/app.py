@@ -19,7 +19,7 @@ from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
 from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
-
+from backtester.strategies.rsi_strategy import RSIStrategy
 
 import dotenv
 
@@ -93,13 +93,21 @@ class PercentageSMAStrategy(Strategy):
     position_type: Literal["long", "short"]
     description: str = "SMA strategy that triggers trades based on percentage deviation from SMA"
 
+class RSIStrategy(Strategy):
+    type: Literal["RSIStrategy"]
+    period: int
+    rsi_threshold: float
+    position_type: Literal["long", "short"]
+    name: str
+    description: str = "RSI strategy that enters positions based on momentum indicators"
+
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
     name: str
     stocks: List[str]
     start_date: date
     end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy]]
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy, RSIStrategy]]
 
 # New model for returns data
 class ReturnsData(BaseModel):
@@ -149,6 +157,14 @@ def _get_backtester_strategies(env: Environment):
                     days=strategy['days'],
                     percentage_change=strategy['percentage_change'],
                     direction=strategy['direction'],
+                    position_type=strategy['position_type']
+                )
+            )
+        elif strategy['type'] == 'RSIStrategy':
+            backtester_strategies.append(
+                RSIStrategy(
+                    period=strategy['period'],
+                    rsi_threshold=strategy['rsi_threshold'],
                     position_type=strategy['position_type']
                 )
             )
@@ -305,6 +321,16 @@ async def get_environments(current_user: User = Depends(get_current_user)):
                 strategies.append(ExampleStrategy2(**strategy))
             elif strategy_type == 'PercentageSMAStrategy':
                 strategies.append(PercentageSMAStrategy(**strategy))
+            elif strategy_type == 'RSIStrategy':
+                # Ensure all required fields are present
+                strategy_data = {
+                    'name': strategy.get('name', ''),
+                    'type': 'RSIStrategy',
+                    'period': strategy.get('period', 14),
+                    'rsi_threshold': strategy.get('rsi_threshold', 30.0),
+                    'position_type': strategy.get('position_type', 'long')
+                }
+                strategies.append(RSIStrategy(**strategy_data))
         
         # Convert dates from strings to date objects
         env['start_date'] = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
@@ -412,7 +438,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-    strategy: Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy]
+    strategy: Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy, RSIStrategy]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(

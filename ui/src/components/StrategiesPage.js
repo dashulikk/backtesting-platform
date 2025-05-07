@@ -44,6 +44,41 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [runningBacktests, setRunningBacktests] = useState(new Set());
 
+  const strategiesInfo = {
+    PercentageSMAStrategy: {
+      description: "A strategy that uses Simple Moving Average (SMA) to identify trading opportunities based on percentage deviations from the moving average. The strategy enters positions when the price deviates from the SMA by a specified percentage, either above or below the moving average.",
+      parameters: [
+        {
+          name: "Days",
+          description: "The number of days used to calculate the Simple Moving Average. A longer period (e.g., 20-50 days) will result in a smoother line that better represents the overall trend, while a shorter period (e.g., 5-10 days) will be more responsive to recent price changes.",
+          type: "number",
+          min: 1
+        },
+        {
+          name: "Percentage Change",
+          description: "The minimum percentage deviation from the SMA required to trigger a trade. For example, a value of 2 means the price must deviate by at least 2% from the SMA. This parameter helps filter out small price movements and only enter trades on significant deviations.",
+          type: "number",
+          min: 0,
+          step: 0.1
+        },
+        {
+          name: "Direction",
+          description: "Determines whether to enter a position when the price drops below (Drop) or rises above (Rise) the SMA by the specified percentage. 'Drop' is typically used for long positions (buying when price drops below SMA), while 'Rise' is used for short positions (selling when price rises above SMA).",
+          type: "select",
+          options: ["Drop", "Rise"]
+        },
+        {
+          name: "Position Type",
+          description: "Specifies whether to take a long or short position when the entry conditions are met. Long positions profit from price increases, while short positions profit from price decreases. The position type should align with your market outlook and risk tolerance.",
+          type: "select",
+          options: ["Long", "Short"]
+        }
+      ],
+      example: "With Days=20, Percentage Change=2, Direction=Drop, and Position Type=Long, the strategy will enter a long position when the price drops 2% below the 20-day SMA. This setup is suitable for identifying potential buying opportunities when a stock temporarily dips below its moving average.",
+      strategyLogic: "The strategy calculates a Simple Moving Average over the specified number of days. When the current price deviates from the SMA by the specified percentage in the chosen direction, a position is entered. This approach helps identify potential mean reversion opportunities or trend continuation signals, depending on the chosen parameters."
+    }
+  };
+
   useEffect(() => {
     fetchEnvironments();
   }, []);
@@ -70,18 +105,18 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
     }
   };
 
-  const handleAddStrategy = async (strategy) => {
+  const handleAddStrategy = async (strategyData) => {
     if (!selectedEnvironment) return;
     
     try {
-      console.log('Adding strategy:', strategy); // Debug log
+      console.log('Adding strategy:', strategyData); // Debug log
       const response = await fetch(`http://localhost:8000/${encodeURIComponent(selectedEnvironment.name)}/strategies`, {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer test-token-for-user1',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(strategy),
+        body: JSON.stringify(strategyData),
       });
       
       if (!response.ok) {
@@ -90,10 +125,10 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
         throw new Error(errorData.detail || 'Failed to add strategy');
       }
       
-      // Update the selected environment's strategies directly
+      // Update the selected environment's strategies directly with the new strategy
       setSelectedEnvironment(prev => ({
         ...prev,
-        strategies: [...prev.strategies, strategy.strategy]
+        strategies: [...prev.strategies, strategyData.strategy]
       }));
       
       setAddModalOpened(false);
@@ -249,7 +284,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
   return (
     <Container size="xl" py="xl" style={{ overflowY: 'auto', height: '100%' }}>
       <Stack spacing="xl">
-        <Group position="apart">
+        <Group justify="space-between">
           <Group>
             <ActionIcon onClick={onBack} size="lg" variant="subtle">
               <IconArrowLeft size={20} />
@@ -287,14 +322,14 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                 onClick={() => setSelectedEnvironment(env)}
               >
                 <Stack spacing="md" style={{ height: '100%' }}>
-                  <Group position="apart" align="flex-start">
-                    <Group spacing="xs">
+                  <Group justify="space-between" align="flex-start">
+                    <Group gap="xs">
                       <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                         <IconChartLine size={16} />
                       </ThemeIcon>
                       <div>
-                        <Text weight={700} size="lg">{env.name}</Text>
-                        <Text size="xs" color="dimmed">
+                        <Text fw={700} size="lg">{env.name}</Text>
+                        <Text size="xs" c="dimmed">
                           {env.start_date} to {env.end_date}
                         </Text>
                       </div>
@@ -305,7 +340,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                   <Divider />
                   
                   <Stack spacing="xs" style={{ flex: 1 }}>
-                    <Text size="sm" weight={500}>Stocks:</Text>
+                    <Text size="sm" fw={500}>Stocks:</Text>
                     <div style={{ 
                       display: 'flex', 
                       flexWrap: 'wrap', 
@@ -347,7 +382,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
               </Card>
             ))}
             {environments.length === 0 && (
-              <Text color="dimmed" align="center" py="xl">
+              <Text c="dimmed" ta="center" py="xl">
                 No environments found. Create an environment first.
               </Text>
             )}
@@ -356,7 +391,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
 
         {selectedEnvironment && (
           <Stack spacing="md">
-            <Group position="apart">
+            <Group justify="space-between">
               <Group>
                 <ActionIcon 
                   onClick={() => setSelectedEnvironment(null)} 
@@ -378,17 +413,17 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
             <Stack spacing="md">
               {selectedEnvironment.strategies.map((strategy) => (
                 <Card key={strategy.name} withBorder p="md">
-                  <Group position="apart">
+                  <Group justify="space-between">
                     <Group>
                       <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                         {getStrategyIcon(strategy.type)}
                       </ThemeIcon>
                       <div>
-                        <Text weight={500}>{strategy.name}</Text>
-                        <Text size="xs" color="dimmed">{strategy.type}</Text>
+                        <Text fw={500}>{strategy.name}</Text>
+                        <Text size="xs" c="dimmed">{strategy.type}</Text>
                       </div>
                     </Group>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                       <ThemeIcon 
                         size="lg" 
                         color="blue" 
@@ -417,19 +452,19 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
                   
                   <Grid>
                     <Grid.Col span={12}>
-                      <Text size="sm" weight={500}>Parameters:</Text>
+                      <Text size="sm" fw={500}>Parameters:</Text>
                       <Text size="sm">
-                        {strategy.type === 'ExampleStrategy' && `days: ${strategy.days}, n: ${strategy.n}`}
-                        {strategy.type === 'ExampleStrategy2' && `a: ${strategy.a}, b: ${strategy.b}`}
                         {strategy.type === 'PercentageSMAStrategy' && 
                           `days: ${strategy.days}, percentage_change: ${strategy.percentage_change}%, direction: ${strategy.direction}, position_type: ${strategy.position_type}`}
+                        {strategy.type === 'RSIStrategy' && 
+                          `period: ${strategy.period}, rsi_threshold: ${strategy.rsi_threshold}, position_type: ${strategy.position_type}`}
                       </Text>
                     </Grid.Col>
                   </Grid>
                 </Card>
               ))}
               {selectedEnvironment.strategies.length === 0 && (
-                <Text color="dimmed" align="center" py="xl">
+                <Text c="dimmed" ta="center" py="xl">
                   No strategies found. Add a strategy to get started.
                 </Text>
               )}

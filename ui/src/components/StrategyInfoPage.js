@@ -17,22 +17,39 @@ import { useNavigate } from 'react-router-dom';
 
 const strategies = [
   {
-    name: 'Simple Moving Average (SMA)',
-    description: 'This strategy helps identify potential buying opportunities by comparing a stock\'s current price to its average price over a specific period.',
-    useCase: 'Useful for identifying trends and potential entry points when a stock\'s price moves above its average.',
+    name: 'Percentage-based Simple Moving Average (SMA)',
+    description: 'This strategy identifies trading opportunities based on percentage deviations from a Simple Moving Average. It enters positions when the price moves significantly away from the moving average, either above or below, by a specified percentage.',
+    useCase: 'Useful for identifying both mean reversion opportunities (when price deviates significantly from the average) and trend continuation signals (when price breaks away from the average).',
     parameters: [
-      { name: 'days', description: 'The number of days to calculate the average price' }
+      { 
+        name: 'Days', 
+        description: 'The number of days used to calculate the Simple Moving Average. Longer periods (20-50 days) provide smoother trends, while shorter periods (5-10 days) are more responsive to recent price changes.' 
+      },
+      { 
+        name: 'Percentage Change', 
+        description: 'The minimum percentage deviation from the SMA required to trigger a trade. For example, a value of 2 means the price must deviate by at least 2% from the SMA. This helps filter out small price movements.' 
+      },
+      { 
+        name: 'Direction', 
+        description: 'Determines whether to enter when price drops below (Drop) or rises above (Rise) the SMA. Drop is typically used for long positions, while Rise is used for short positions.' 
+      },
+      { 
+        name: 'Position Type', 
+        description: 'Specifies whether to take a long or short position. Long positions profit from price increases, while short positions profit from price decreases.' 
+      }
     ],
-    strategyLogic: 'When a stock\'s current price rises above its average price over the specified period, it may indicate an upward trend and potential buying opportunity.'
+    strategyLogic: 'The strategy calculates a Simple Moving Average over the specified number of days. When the current price deviates from the SMA by the specified percentage in the chosen direction, a position is entered. This approach helps identify potential mean reversion opportunities or trend continuation signals, depending on the chosen parameters.'
   },
   {
     name: 'Relative Strength Index (RSI)',
-    description: 'This strategy helps identify when a stock might be oversold and due for a price increase.',
-    useCase: 'Helpful for finding potential buying opportunities when a stock has been declining and might be ready to bounce back.',
+    description: 'This strategy uses the Relative Strength Index (RSI) to identify overbought and oversold conditions. It enters a long position when the RSI falls below a specified threshold (e.g., 30), indicating oversold conditions, or a short position when the RSI rises above (100 - threshold), indicating overbought conditions.',
+    useCase: 'Helpful for finding potential buying opportunities when a stock has been declining and might be ready to bounce back, or selling opportunities when a stock is overbought.',
     parameters: [
-      { name: 'period', description: 'The time period used to calculate the RSI (typically 14 days)' }
+      { name: 'Period', description: 'The number of days used to calculate the RSI (typical value: 14).' },
+      { name: 'RSI Threshold', description: 'The RSI value used to trigger entry. For long positions, enter when RSI is below this value (e.g., 30). For short positions, enter when RSI is above (100 - threshold) (e.g., 70).' },
+      { name: 'Position Type', description: 'Select LONG to buy in oversold conditions or SHORT to sell in overbought conditions.' }
     ],
-    strategyLogic: 'When the RSI falls below 30, it suggests the stock might be oversold and could be a good time to consider buying.'
+    strategyLogic: 'The strategy calculates the RSI over the specified period. For LONG positions, it enters when the RSI falls below the threshold (e.g., 30). For SHORT positions, it enters when the RSI rises above (100 - threshold) (e.g., 70). This helps identify potential mean reversion opportunities in both directions.'
   },
   {
     name: 'Volume-based Moving Average',
