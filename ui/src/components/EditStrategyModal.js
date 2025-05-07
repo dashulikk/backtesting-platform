@@ -29,10 +29,6 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
           rsi_threshold: strategy.rsi_threshold || 0,
           position_type: strategy.position_type || ''
         });
-      } else if (strategy.type === 'RSIStrategy') {
-        setParameters({
-          period: strategy.period || 14
-        });
       } else if (strategy.type === 'VolumeMAStrategy') {
         setParameters({
           days: strategy.days || 0
@@ -58,9 +54,6 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
       if (strategy.type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type)) {
         throw new Error('All parameters are required for RSI Strategy');
       }
-      if (strategy.type === 'RSIStrategy' && !parameters.period) {
-        throw new Error('Period is required for RSI Strategy');
-      }
       if (strategy.type === 'VolumeMAStrategy' && !parameters.days) {
         throw new Error('Days is required for Volume MA Strategy');
       }
@@ -70,19 +63,7 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
         strategy: {
           name: strategy.name,
           type: strategy.type,
-<<<<<<< HEAD
           ...parameters
-=======
-          ...(strategy.type === 'ExampleStrategy'
-            ? { days: Number(parameters.days), n: Number(parameters.n) }
-            : strategy.type === 'ExampleStrategy2'
-            ? { a: Number(parameters.a), b: Number(parameters.b) }
-            : strategy.type === 'SMAStrategy'
-            ? { days: Number(parameters.days) }
-            : strategy.type === 'RSIStrategy'
-            ? { period: Number(parameters.period) }
-            : { days: Number(parameters.days) })
->>>>>>> 570b26107331c9dd9ec5b0fe173298c55abd8646
         }
       };
 
@@ -174,19 +155,6 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             />
           </Stack>
         );
-      case 'RSIStrategy':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Period"
-              description="Number of days for RSI calculation (typically 14)"
-              value={parameters.period || 14}
-              onChange={(value) => setParameters({ ...parameters, period: value })}
-              min={1}
-              required
-            />
-          </Stack>
-        );
       case 'VolumeMAStrategy':
         return (
           <Stack spacing="md">
@@ -239,16 +207,8 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
             onClick={handleSubmit}
             loading={loading}
             disabled={
-<<<<<<< HEAD
               (strategy?.type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) ||
               (strategy?.type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type))
-=======
-              (strategy?.type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-              (strategy?.type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-              (strategy?.type === 'SMAStrategy' && !parameters.days) ||
-              (strategy?.type === 'RSIStrategy' && !parameters.period) ||
-              (strategy?.type === 'VolumeMAStrategy' && !parameters.days)
->>>>>>> 570b26107331c9dd9ec5b0fe173298c55abd8646
             }
           >
             Save Changes

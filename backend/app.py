@@ -18,14 +18,8 @@ from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
-<<<<<<< HEAD
 from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
 from backtester.strategies.rsi_strategy import RSIStrategy
-=======
-from backtester.strategies.sma_strategy import SMAStrategy as BackTesterSMAStrategy
-from backtester.strategies.rsi_strategy import RSIStrategy as BackTesterRSIStrategy
-from backtester.strategies.volume_ma import VolumeMAStrategy as BackTesterVolumeMAStrategy
->>>>>>> 570b26107331c9dd9ec5b0fe173298c55abd8646
 
 import dotenv
 
@@ -107,10 +101,6 @@ class RSIStrategy(Strategy):
     name: str
     description: str = "RSI strategy that enters positions based on momentum indicators"
 
-class RSIStrategy(Strategy):
-    type: Literal["RSIStrategy"]
-    period: int
-
 class VolumeMAStrategy(Strategy):
     type: Literal["VolumeMAStrategy"]
     days: int
@@ -180,12 +170,6 @@ def _get_backtester_strategies(env: Environment):
                     period=strategy['period'],
                     rsi_threshold=strategy['rsi_threshold'],
                     position_type=strategy['position_type']
-                )
-            )
-        elif strategy['type'] == 'RSIStrategy':
-            backtester_strategies.append(
-                BackTesterRSIStrategy(
-                    period=strategy['period']
                 )
             )
         elif strategy['type'] == 'VolumeMAStrategy':
@@ -464,11 +448,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-<<<<<<< HEAD
     strategy: Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy, RSIStrategy]
-=======
-    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy, VolumeMAStrategy]
->>>>>>> 570b26107331c9dd9ec5b0fe173298c55abd8646
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(
