@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response, status, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Response, status, Depends, BackgroundTasks, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -18,6 +18,11 @@ from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
 from backtester.strategies.rsi_strategy import RSIStrategy as BackTesterRSIStrategy
+from auth import (
+    UserCreate, UserLogin, User, Token, verify_password,
+    get_password_hash, create_access_token, get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 import dotenv
 
@@ -29,6 +34,7 @@ data_df = pd.read_csv("./backtester/data.csv")
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(f"{mongo_uri}")
 db = client['backtesting']
+users_collection = db['users']
 
 app = FastAPI()
 
@@ -145,6 +151,9 @@ class TradeData(BaseModel):
 # Response model for backtest
 class BacktestResponse(BaseModel):
     status: str = "ok"
+
+class ExampleRequest(BaseModel):
+    value: int
 
 def _get_backtester_strategies(env: Environment):
     backtester_strategies = []
@@ -273,10 +282,6 @@ def _backtest(env: Environment, mongo_db):
     )
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    # Special case for test token
-    if token == TEST_TOKEN:
-        return User(username="user1")
-
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -289,7 +294,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
     return User(username=username)
 
 def verify_user_access(current_user: User, user_id: str):
@@ -329,6 +333,7 @@ def convert_objectid(item):
 async def get_environments(current_user: User = Depends(get_current_user)):
     """Get all environments for the authenticated user."""
     user_id = current_user.username
+    print(f"[GET ENVS] Fetching environments for user: {user_id}")
     envs = list(db.environments.find({"user_id": user_id}))
     
     # Convert MongoDB documents to Pydantic models
@@ -470,6 +475,7 @@ async def create_environment(
 ):
     """Create a new environment for the current user."""
     user_id = current_user.username
+    print(f"[CREATE ENV] Creating environment for user: {user_id}")
     
     # Check if environment with this name already exists
     existing = db.environments.find_one({"user_id": user_id, "name": request.name})
@@ -623,3 +629,68 @@ async def update_environment(
     db.trades.delete_one({"environment_id": env_id})
     
     return Response(status_code=status.HTTP_200_OK)
+
+@app.post("/signup", response_model=Token)
+async def signup(user_data: UserCreate):
+    # Check if username already exists
+    if users_collection.find_one({"username": user_data.username}):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already registered"
+        )
+    
+    # Create new user
+    user_doc = {
+        "username": user_data.username,
+        "password_hash": get_password_hash(user_data.password)
+    }
+    users_collection.insert_one(user_doc)
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_data.username},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/login", response_model=Token)
+async def login(user_data: UserLogin):
+    # Find user in database
+    user = users_collection.find_one({"username": user_data.username})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Verify password
+    if not verify_password(user_data.password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_data.username},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.put("/example-protected-endpoint", status_code=200)
+async def example_protected_endpoint(
+    request: ExampleRequest = Body(...),
+    current_user: User = Depends(get_current_user)
+):
+    username = current_user.username
+    if username is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    # Example logic using the username for user separation
+    # service.do_something(username, request.value)
+    return {"message": f"Operation was successful for user {username}"}

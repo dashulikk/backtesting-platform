@@ -44,6 +44,8 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [runningBacktests, setRunningBacktests] = useState(new Set());
 
+  const token = localStorage.getItem('token');
+
   const strategiesInfo = {
     PercentageSMAStrategy: {
       description: "A strategy that uses Simple Moving Average (SMA) to identify trading opportunities based on percentage deviations from the moving average. The strategy enters positions when the price deviates from the SMA by a specified percentage, either above or below the moving average.",
@@ -88,7 +90,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       setLoading(true);
       const response = await fetch('http://localhost:8000/envs', {
         headers: {
-          'Authorization': 'Bearer test-token-for-user1'
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
       
@@ -113,7 +115,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       const response = await fetch(`http://localhost:8000/${encodeURIComponent(selectedEnvironment.name)}/strategies`, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(strategyData),
@@ -146,7 +148,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       const deleteResponse = await fetch(`http://localhost:8000/${encodeURIComponent(selectedEnvironment.name)}/strategies/${encodeURIComponent(editingStrategy.name)}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1'
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
       
@@ -160,7 +162,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       const createResponse = await fetch(`http://localhost:8000/${encodeURIComponent(selectedEnvironment.name)}/strategies`, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
@@ -196,7 +198,7 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
       const response = await fetch(`http://localhost:8000/${selectedEnvironment.name}/strategies/${strategyToDelete.name}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1'
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
       
@@ -220,20 +222,19 @@ const StrategiesPage = ({ onBack, onNavigate }) => {
   const handleRunBacktest = async (envName) => {
     try {
       setRunningBacktests(prev => new Set([...prev, envName]));
-      
       const response = await fetch(`http://localhost:8000/${encodeURIComponent(envName)}/backtest`, {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1'
-        }
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
       });
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         console.error('Backtest response:', errorData);
         throw new Error(errorData?.detail || 'Failed to run backtest');
       }
-
       // Show success message
       console.log('Backtest started successfully');
     } catch (err) {

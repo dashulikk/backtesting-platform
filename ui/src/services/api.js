@@ -15,10 +15,10 @@ class Api {
     }
 
     getHeaders() {
+        const token = localStorage.getItem('token');
         return {
-            'Authorization': `Bearer ${this.token}`,
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         };
     }
 
