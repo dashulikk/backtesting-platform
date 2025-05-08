@@ -16,8 +16,6 @@ import os
 
 from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
-from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
-from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
 from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
 from backtester.strategies.rsi_strategy import RSIStrategy as BackTesterRSIStrategy
 
