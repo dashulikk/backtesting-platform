@@ -19,7 +19,7 @@ from backtester.environment import Environment as BackTesterEnvironment
 from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
 from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
 from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
-from backtester.strategies.rsi_strategy import RSIStrategy
+from backtester.strategies.rsi_strategy import RSIStrategy as BackTesterRSIStrategy
 
 import dotenv
 
@@ -79,11 +79,15 @@ class ExampleStrategy(Strategy):
     type: Literal["ExampleStrategy"]
     days: int
     n: int
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class ExampleStrategy2(Strategy):
     type: Literal["ExampleStrategy2"]
     a: float
     b: float
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class PercentageSMAStrategy(Strategy):
     type: Literal["PercentageSMAStrategy"]
@@ -92,6 +96,8 @@ class PercentageSMAStrategy(Strategy):
     direction: Literal["drop", "rise"]
     position_type: Literal["long", "short"]
     description: str = "SMA strategy that triggers trades based on percentage deviation from SMA"
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class RSIStrategy(Strategy):
     type: Literal["RSIStrategy"]
@@ -100,10 +106,14 @@ class RSIStrategy(Strategy):
     position_type: Literal["long", "short"]
     name: str
     description: str = "RSI strategy that enters positions based on momentum indicators"
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class VolumeMAStrategy(Strategy):
     type: Literal["VolumeMAStrategy"]
     days: int
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
@@ -141,44 +151,49 @@ class BacktestResponse(BaseModel):
 def _get_backtester_strategies(env: Environment):
     backtester_strategies = []
     for strategy in env['strategies']:
+        instance = None
         if strategy['type'] == 'ExampleStrategy':
-            backtester_strategies.append(
-                BackTesterExampleStrategy1(
-                    days=strategy['days'],
-                    n=strategy['n']
-                )
+            instance = BackTesterExampleStrategy1(
+                days=strategy['days'],
+                n=strategy['n']
             )
         elif strategy['type'] == 'ExampleStrategy2':
-            backtester_strategies.append(
-                BackTesterExampleStrategy2(
-                    a=strategy['a'],
-                    b=strategy['b']
-                )
+            instance = BackTesterExampleStrategy2(
+                a=strategy['a'],
+                b=strategy['b']
             )
         elif strategy['type'] == 'PercentageSMAStrategy':
-            backtester_strategies.append(
-                BackTesterPercentageSMAStrategy(
-                    days=strategy['days'],
-                    percentage_change=strategy['percentage_change'],
-                    direction=strategy['direction'],
-                    position_type=strategy['position_type']
-                )
+            instance = BackTesterPercentageSMAStrategy(
+                days=strategy['days'],
+                percentage_change=strategy['percentage_change'],
+                direction=strategy['direction'],
+                position_type=strategy['position_type'],
+                stop_loss_pct=strategy.get('stop_loss_pct'),
+                take_profit_pct=strategy.get('take_profit_pct'),
+                name=strategy.get('name', 'SMA'),
+                type='PercentageSMAStrategy'
             )
         elif strategy['type'] == 'RSIStrategy':
-            backtester_strategies.append(
-                RSIStrategy(
-                    period=strategy['period'],
-                    rsi_threshold=strategy['rsi_threshold'],
-                    position_type=strategy['position_type']
-                )
+            instance = BackTesterRSIStrategy(
+                period=strategy['period'],
+                rsi_threshold=strategy['rsi_threshold'],
+                position_type=strategy['position_type'],
+                stop_loss_pct=strategy.get('stop_loss_pct'),
+                take_profit_pct=strategy.get('take_profit_pct'),
+                name=strategy.get('name', 'RSI'),
+                type='RSIStrategy'
             )
         elif strategy['type'] == 'VolumeMAStrategy':
-            backtester_strategies.append(
-                BackTesterVolumeMAStrategy(
-                    days=strategy['days']
-                )
+            instance = BackTesterVolumeMAStrategy(
+                days=strategy['days']
             )
-    
+        # Set stop_loss_pct and take_profit_pct for all strategies if present
+        if instance is not None:
+            if 'stop_loss_pct' in strategy:
+                instance.stop_loss_pct = strategy['stop_loss_pct']
+            if 'take_profit_pct' in strategy:
+                instance.take_profit_pct = strategy['take_profit_pct']
+            backtester_strategies.append(instance)
     return backtester_strategies
 
 def _get_backtester_environment(env: Environment):

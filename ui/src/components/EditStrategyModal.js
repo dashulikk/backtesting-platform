@@ -16,26 +16,34 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
 
   useEffect(() => {
     if (opened && strategy) {
+      let baseParams = {};
       if (strategy.type === 'PercentageSMAStrategy') {
-        setParameters({
-          days: strategy.days || 0,
-          percentage_change: strategy.percentage_change || 0,
-          direction: strategy.direction || '',
-          position_type: strategy.position_type || ''
-        });
+        baseParams = {
+          days: strategy.days ?? '',
+          percentage_change: strategy.percentage_change ?? '',
+          direction: strategy.direction ?? '',
+          position_type: strategy.position_type ?? '',
+          stop_loss_pct: strategy.stop_loss_pct ?? '',
+          take_profit_pct: strategy.take_profit_pct ?? ''
+        };
       } else if (strategy.type === 'RSIStrategy') {
-        setParameters({
-          period: strategy.period || 0,
-          rsi_threshold: strategy.rsi_threshold || 0,
-          position_type: strategy.position_type || ''
-        });
+        baseParams = {
+          period: strategy.period ?? '',
+          rsi_threshold: strategy.rsi_threshold ?? '',
+          position_type: strategy.position_type ?? '',
+          stop_loss_pct: strategy.stop_loss_pct ?? '',
+          take_profit_pct: strategy.take_profit_pct ?? ''
+        };
       } else if (strategy.type === 'VolumeMAStrategy') {
-        setParameters({
-          days: strategy.days || 0
-        });
+        baseParams = {
+          days: strategy.days ?? '',
+          stop_loss_pct: strategy.stop_loss_pct ?? '',
+          take_profit_pct: strategy.take_profit_pct ?? ''
+        };
       }
+      setParameters(baseParams);
     }
-  }, [opened, strategy]);
+  }, [opened, strategy]); // ✅ FIXED dependency
 
   const handleSubmit = async () => {
     if (!strategy.name) {
@@ -58,12 +66,24 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
         throw new Error('Days is required for Volume MA Strategy');
       }
 
-      // Match the exact API format
+      // Clean stop_loss_pct and take_profit_pct to ensure they are numbers or undefined
+      const cleanedParams = { ...parameters };
+      if (cleanedParams.stop_loss_pct === '' || cleanedParams.stop_loss_pct === null) {
+        delete cleanedParams.stop_loss_pct;
+      } else {
+        cleanedParams.stop_loss_pct = Number(cleanedParams.stop_loss_pct);
+      }
+      if (cleanedParams.take_profit_pct === '' || cleanedParams.take_profit_pct === null) {
+        delete cleanedParams.take_profit_pct;
+      } else {
+        cleanedParams.take_profit_pct = Number(cleanedParams.take_profit_pct);
+      }
+
       const strategyData = {
         strategy: {
           name: strategy.name,
           type: strategy.type,
-          ...parameters
+          ...cleanedParams
         }
       };
 
@@ -78,6 +98,28 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
 
   const renderParameterInputs = () => {
     if (!strategy) return null;
+
+    const stopLossInput = (
+      <NumberInput
+        label="Stop Loss (%)"
+        description="Optional: Exit position if price moves against you by this percentage"
+        value={parameters.stop_loss_pct === null || parameters.stop_loss_pct === undefined ? '' : parameters.stop_loss_pct}
+        onChange={(value) => setParameters({ ...parameters, stop_loss_pct: value })}
+        min={0}
+        precision={2}
+      />
+    );
+
+    const takeProfitInput = (
+      <NumberInput
+        label="Take Profit (%)"
+        description="Optional: Exit position if price moves in your favor by this percentage"
+        value={parameters.take_profit_pct === null || parameters.take_profit_pct === undefined ? '' : parameters.take_profit_pct}
+        onChange={(value) => setParameters({ ...parameters, take_profit_pct: value })}
+        min={0}
+        precision={2}
+      />
+    );
 
     switch (strategy.type) {
       case 'PercentageSMAStrategy':
@@ -118,6 +160,8 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
               ]}
               required
             />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       case 'RSIStrategy':
@@ -153,6 +197,8 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
               ]}
               required
             />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       case 'VolumeMAStrategy':
@@ -166,10 +212,17 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
               min={1}
               required
             />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       default:
-        return null;
+        return (
+          <Stack spacing="md">
+            {stopLossInput}
+            {takeProfitInput}
+          </Stack>
+        );
     }
   };
 
@@ -219,4 +272,4 @@ const EditStrategyModal = ({ opened, onClose, onSubmit, strategy }) => {
   );
 };
 
-export default EditStrategyModal; 
+export default EditStrategyModal;

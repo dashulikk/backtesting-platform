@@ -73,6 +73,26 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
   };
 
   const renderParameterInputs = () => {
+    const stopLossInput = (
+      <NumberInput
+        label="Stop Loss (%)"
+        description="Optional: Exit position if price moves against you by this percentage"
+        value={parameters.stop_loss_pct || 0}
+        onChange={(value) => setParameters({ ...parameters, stop_loss_pct: value })}
+        min={0}
+        precision={2}
+      />
+    );
+    const takeProfitInput = (
+      <NumberInput
+        label="Take Profit (%)"
+        description="Optional: Exit position if price moves in your favor by this percentage"
+        value={parameters.take_profit_pct || 0}
+        onChange={(value) => setParameters({ ...parameters, take_profit_pct: value })}
+        min={0}
+        precision={2}
+      />
+    );
     switch (type) {
       case 'PercentageSMAStrategy':
         return (
@@ -116,6 +136,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
               ]}
               required
             />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       case 'RSIStrategy':
@@ -151,19 +173,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
               ]}
               required
             />
-          </Stack>
-        );
-      case 'RSIStrategy':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Period"
-              description="Number of days for RSI calculation (typically 14)"
-              value={parameters.period || 14}
-              onChange={(value) => setParameters({ ...parameters, period: value })}
-              min={1}
-              required
-            />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       case 'VolumeMAStrategy':
@@ -177,10 +188,17 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
               min={1}
               required
             />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       default:
-        return null;
+        return (
+          <Stack spacing="md">
+            {stopLossInput}
+            {takeProfitInput}
+          </Stack>
+        );
     }
   };
 

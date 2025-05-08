@@ -1,7 +1,7 @@
 from backtester.market_data import MarketData
 from datetime import date
 from backtester.strategies.base_strategy import Strategy, StrategyType
-from typing import Literal
+from typing import Literal, Optional
 import statistics
 
 class PercentageSMAStrategy(Strategy):
@@ -10,7 +10,11 @@ class PercentageSMAStrategy(Strategy):
         days: int, 
         percentage_change: float,
         direction: Literal["drop", "rise"],
-        position_type: Literal["long", "short"]
+        position_type: Literal["long", "short"],
+        stop_loss_pct: Optional[float] = None,
+        take_profit_pct: Optional[float] = None,
+        name: Optional[str] = None,
+        type: Optional[str] = None
     ):
         """
         Initialize Percentage SMA Strategy
@@ -20,12 +24,21 @@ class PercentageSMAStrategy(Strategy):
             percentage_change (float): Percentage difference from SMA to trigger trade
             direction (str): "drop" or "rise" - only trigger on drop or rise
             position_type (str): "long" or "short" - defines if strategy opens long or short
+            stop_loss_pct (float, optional): Stop loss percentage
+            take_profit_pct (float, optional): Take profit percentage
+            name (str, optional): Strategy name
+            type (str, optional): Strategy type
         """
+        super().__init__()
         self.days = days
         self.percentage_change = percentage_change
         self.direction = direction
         self.position_type = position_type
-        self.name = "Percentage SMA Strategy"
+        self.stop_loss_pct = stop_loss_pct
+        self.take_profit_pct = take_profit_pct
+        self.entry_price: Optional[float] = None
+        self.name = name
+        self.type = type
     
     def calculate_sma(self, market_data: MarketData, ticker: str, current_date: date) -> float:
         """

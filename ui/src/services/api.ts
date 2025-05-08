@@ -19,6 +19,8 @@ export interface Strategy {
     n?: number;
     a?: number;
     b?: number;
+    stop_loss_pct?: number;
+    take_profit_pct?: number;
 }
 
 export interface ReturnsData {
