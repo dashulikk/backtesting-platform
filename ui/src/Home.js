@@ -41,6 +41,7 @@ import {
   IconBook
 } from '@tabler/icons-react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 
 function MainLink({ icon: Icon, color, label, to, active }) {
   const navigate = useNavigate();
@@ -74,6 +75,8 @@ export function Home() {
   const [opened, setOpened] = useState(false);
   const [userMenuOpened, setUserMenuOpened] = useState(false);
   const location = useLocation();
+  const { username, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <AppShell
@@ -106,13 +109,13 @@ export function Home() {
             <Menu.Target>
               <UnstyledButton>
                 <Group>
-                  <Avatar color="blue" radius="xl">U</Avatar>
+                  <Avatar color="blue" radius="xl">{username ? username[0].toUpperCase() : 'U'}</Avatar>
                   <div style={{ flex: 1 }}>
                     <Text size="sm" fw={500}>
-                      User Name
+                      {username || 'User'}
                     </Text>
                     <Text c="dimmed" size="xs">
-                      user@example.com
+                      {/* Optionally, show email or other info here */}
                     </Text>
                   </div>
                   <IconChevronRight style={{ width: rem(16), height: rem(16) }} />
@@ -128,7 +131,7 @@ export function Home() {
                 Settings
               </Menu.Item>
               <Menu.Divider />
-              <Menu.Item color="red" leftSection={<IconLogout style={{ width: rem(14), height: rem(14) }} />}>
+              <Menu.Item color="red" leftSection={<IconLogout style={{ width: rem(14), height: rem(14) }} />} onClick={() => { logout(); navigate('/login'); }}>
                 Logout
               </Menu.Item>
             </Menu.Dropdown>

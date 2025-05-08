@@ -28,19 +28,24 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
   }, [opened]);
 
   const handleSubmit = async () => {
+    if (!name || !type) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate required parameters based on strategy type
+    if (type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type)) {
+      setError('Please fill in all required parameters');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       // Validate required fields based on strategy type
-      if (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) {
-        throw new Error('Days and N are required for ExampleStrategy');
-      }
-      if (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) {
-        throw new Error('Parameters A and B are required for ExampleStrategy2');
-      }
-      if (type === 'SMAStrategy' && !parameters.days) {
-        throw new Error('Days is required for SMA Strategy');
+      if (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) {
+        throw new Error('All parameters are required for Percentage SMA Strategy');
       }
       if (type === 'RSIStrategy' && !parameters.period) {
         throw new Error('Period is required for RSI Strategy');
@@ -49,21 +54,18 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
         throw new Error('Days is required for Volume MA Strategy');
       }
 
-      await onSubmit({
+      // Create strategy data object
+      const strategyData = {
         name,
         type,
-        parameters: type === 'ExampleStrategy'
-          ? { days: parameters.days, n: parameters.n }
-          : type === 'ExampleStrategy2'
-          ? { a: parameters.a, b: parameters.b }
-          : type === 'SMAStrategy'
-          ? { days: parameters.days }
-          : type === 'RSIStrategy'
-          ? { period: parameters.period }
-          : { days: parameters.days }
-      });
+        ...parameters
+      };
+
+      console.log('Submitting strategy data:', strategyData); // Debug log
+      await onSubmit({ strategy: strategyData });
       onClose();
     } catch (err) {
+      console.error('Error in handleSubmit:', err); // Debug log
       setError(err.message);
     } finally {
       setLoading(false);
@@ -71,53 +73,71 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
   };
 
   const renderParameterInputs = () => {
+    const stopLossInput = (
+      <NumberInput
+        label="Stop Loss (%)"
+        description="Optional: Exit position if price moves against you by this percentage"
+        value={parameters.stop_loss_pct || 0}
+        onChange={(value) => setParameters({ ...parameters, stop_loss_pct: value })}
+        min={0}
+        precision={2}
+      />
+    );
+    const takeProfitInput = (
+      <NumberInput
+        label="Take Profit (%)"
+        description="Optional: Exit position if price moves in your favor by this percentage"
+        value={parameters.take_profit_pct || 0}
+        onChange={(value) => setParameters({ ...parameters, take_profit_pct: value })}
+        min={0}
+        precision={2}
+      />
+    );
     switch (type) {
-      case 'ExampleStrategy':
+      case 'PercentageSMAStrategy':
         return (
           <Stack spacing="md">
             <NumberInput
               label="Days"
+              description="Number of days to calculate the Simple Moving Average"
               value={parameters.days || 0}
               onChange={(value) => setParameters({ ...parameters, days: value })}
               min={1}
               required
             />
             <NumberInput
-              label="N"
-              value={parameters.n || 0}
-              onChange={(value) => setParameters({ ...parameters, n: value })}
-              min={1}
+              label="Percentage Change"
+              description="Minimum percentage deviation from SMA to trigger a trade"
+              value={parameters.percentage_change || 0}
+              onChange={(value) => setParameters({ ...parameters, percentage_change: value })}
+              min={0}
+              precision={2}
               required
             />
-          </Stack>
-        );
-      case 'ExampleStrategy2':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Parameter A"
-              value={parameters.a || 0}
-              onChange={(value) => setParameters({ ...parameters, a: value })}
+            <Select
+              label="Direction"
+              description="Whether to enter when price drops below or rises above SMA"
+              value={parameters.direction || ''}
+              onChange={(value) => setParameters({ ...parameters, direction: value })}
+              data={[
+                { value: 'drop', label: 'Drop' },
+                { value: 'rise', label: 'Rise' }
+              ]}
               required
             />
-            <NumberInput
-              label="Parameter B"
-              value={parameters.b || 0}
-              onChange={(value) => setParameters({ ...parameters, b: value })}
+            <Select
+              label="Position Type"
+              description="Type of position to take (Long or Short)"
+              value={parameters.position_type || ''}
+              onChange={(value) => setParameters({ ...parameters, position_type: value })}
+              data={[
+                { value: 'long', label: 'Long' },
+                { value: 'short', label: 'Short' }
+              ]}
               required
             />
-          </Stack>
-        );
-      case 'SMAStrategy':
-        return (
-          <Stack spacing="md">
-            <NumberInput
-              label="Days"
-              value={parameters.days || 0}
-              onChange={(value) => setParameters({ ...parameters, days: value })}
-              min={1}
-              required
-            />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       case 'RSIStrategy':
@@ -125,12 +145,36 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           <Stack spacing="md">
             <NumberInput
               label="Period"
-              description="Number of days for RSI calculation (typically 14)"
-              value={parameters.period || 14}
+              description="Number of days used to calculate RSI (typical value: 14)"
+              value={parameters.period || 0}
               onChange={(value) => setParameters({ ...parameters, period: value })}
               min={1}
+              max={100}
               required
             />
+            <NumberInput
+              label="RSI Threshold"
+              description="RSI level used to trigger entry. Values below 30 indicate oversold conditions."
+              value={parameters.rsi_threshold || 0}
+              onChange={(value) => setParameters({ ...parameters, rsi_threshold: value })}
+              min={0}
+              max={100}
+              precision={1}
+              required
+            />
+            <Select
+              label="Position Type"
+              description="Select LONG to buy in oversold conditions or SHORT to sell in overbought conditions."
+              value={parameters.position_type || ''}
+              onChange={(value) => setParameters({ ...parameters, position_type: value })}
+              data={[
+                { value: 'long', label: 'Long' },
+                { value: 'short', label: 'Short' }
+              ]}
+              required
+            />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       case 'VolumeMAStrategy':
@@ -144,10 +188,17 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
               min={1}
               required
             />
+            {stopLossInput}
+            {takeProfitInput}
           </Stack>
         );
       default:
-        return null;
+        return (
+          <Stack spacing="md">
+            {stopLossInput}
+            {takeProfitInput}
+          </Stack>
+        );
     }
   };
 
@@ -171,11 +222,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
           value={type}
           onChange={setType}
           data={[
-            { value: 'ExampleStrategy', label: 'Example Strategy' },
-            { value: 'ExampleStrategy2', label: 'Example Strategy 2' },
-            { value: 'SMAStrategy', label: 'SMA Strategy' },
-            { value: 'RSIStrategy', label: 'RSI Strategy' },
-            { value: 'VolumeMAStrategy', label: 'Volume MA Strategy' }
+            { value: 'PercentageSMAStrategy', label: 'Percentage SMA Strategy' },
+            { value: 'RSIStrategy', label: 'RSI Strategy' }
           ]}
           required
         />
@@ -183,18 +231,18 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
         {type && (
           <>
             <Divider />
-            <Text weight={500}>Parameters</Text>
+            <Text fw={500}>Parameters</Text>
             {renderParameterInputs()}
           </>
         )}
 
         {error && (
-          <Text color="red" size="sm">
+          <Text c="red" size="sm">
             {error}
           </Text>
         )}
 
-        <Group position="right" mt="md">
+        <Group justify="flex-end" mt="md">
           <Button variant="light" onClick={onClose}>
             Cancel
           </Button>
@@ -202,11 +250,8 @@ const StrategyModal = ({ opened, onClose, onSubmit }) => {
             onClick={handleSubmit}
             loading={loading}
             disabled={!name || !type || 
-                     (type === 'ExampleStrategy' && (!parameters.days || !parameters.n)) || 
-                     (type === 'ExampleStrategy2' && (!parameters.a || !parameters.b)) ||
-                     (type === 'SMAStrategy' && !parameters.days) ||
-                     (type === 'RSIStrategy' && !parameters.period) ||
-                     (type === 'VolumeMAStrategy' && !parameters.days)}
+                     (type === 'PercentageSMAStrategy' && (!parameters.days || !parameters.percentage_change || !parameters.direction || !parameters.position_type)) ||
+                     (type === 'RSIStrategy' && (!parameters.period || !parameters.rsi_threshold || !parameters.position_type))}
           >
             Add Strategy
           </Button>

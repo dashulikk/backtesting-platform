@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Response, status, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Response, status, Depends, BackgroundTasks, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -16,11 +16,13 @@ import os
 
 from backtester.back_tester import BackTester
 from backtester.environment import Environment as BackTesterEnvironment
-from backtester.strategies.example_strategy import ExampleStrategy1 as BackTesterExampleStrategy1
-from backtester.strategies.example_strategy2 import ExampleStrategy2 as BackTesterExampleStrategy2
-from backtester.strategies.sma_strategy import SMAStrategy as BackTesterSMAStrategy
+from backtester.strategies.percentage_sma_strategy import PercentageSMAStrategy as BackTesterPercentageSMAStrategy
 from backtester.strategies.rsi_strategy import RSIStrategy as BackTesterRSIStrategy
-from backtester.strategies.volume_ma import VolumeMAStrategy as BackTesterVolumeMAStrategy
+from auth import (
+    UserCreate, UserLogin, User, Token, verify_password,
+    get_password_hash, create_access_token, get_current_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 import dotenv
 
@@ -32,6 +34,7 @@ data_df = pd.read_csv("./backtester/data.csv")
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(f"{mongo_uri}")
 db = client['backtesting']
+users_collection = db['users']
 
 app = FastAPI()
 
@@ -80,23 +83,41 @@ class ExampleStrategy(Strategy):
     type: Literal["ExampleStrategy"]
     days: int
     n: int
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class ExampleStrategy2(Strategy):
     type: Literal["ExampleStrategy2"]
     a: float
     b: float
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
-class SMAStrategy(Strategy):
-    type: Literal["SMAStrategy"]
+class PercentageSMAStrategy(Strategy):
+    type: Literal["PercentageSMAStrategy"]
     days: int
+    percentage_change: float
+    direction: Literal["drop", "rise"]
+    position_type: Literal["long", "short"]
+    description: str = "SMA strategy that triggers trades based on percentage deviation from SMA"
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class RSIStrategy(Strategy):
     type: Literal["RSIStrategy"]
     period: int
+    rsi_threshold: float
+    position_type: Literal["long", "short"]
+    name: str
+    description: str = "RSI strategy that enters positions based on momentum indicators"
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 class VolumeMAStrategy(Strategy):
     type: Literal["VolumeMAStrategy"]
     days: int
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
 
 # Environment model (now includes what was previously in Simulation)
 class Environment(BaseModel):
@@ -104,7 +125,7 @@ class Environment(BaseModel):
     stocks: List[str]
     start_date: date
     end_date: date
-    strategies: List[Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy, VolumeMAStrategy]]
+    strategies: List[Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy, RSIStrategy]]
 
 # New model for returns data
 class ReturnsData(BaseModel):
@@ -131,43 +152,55 @@ class TradeData(BaseModel):
 class BacktestResponse(BaseModel):
     status: str = "ok"
 
+class ExampleRequest(BaseModel):
+    value: int
+
 def _get_backtester_strategies(env: Environment):
     backtester_strategies = []
     for strategy in env['strategies']:
-        print(strategy)
+        instance = None
         if strategy['type'] == 'ExampleStrategy':
-            backtester_strategies.append(
-                BackTesterExampleStrategy1(
-                    days=strategy['days'],
-                    n=strategy['n']
-                )
+            instance = BackTesterExampleStrategy1(
+                days=strategy['days'],
+                n=strategy['n']
             )
         elif strategy['type'] == 'ExampleStrategy2':
-            backtester_strategies.append(
-                BackTesterExampleStrategy2(
-                    a=strategy['a'],
-                    b=strategy['b']
-                )
+            instance = BackTesterExampleStrategy2(
+                a=strategy['a'],
+                b=strategy['b']
             )
-        elif strategy['type'] == 'SMAStrategy':
-            backtester_strategies.append(
-                BackTesterSMAStrategy(
-                    days=strategy['days']
-                )
+        elif strategy['type'] == 'PercentageSMAStrategy':
+            instance = BackTesterPercentageSMAStrategy(
+                days=strategy['days'],
+                percentage_change=strategy['percentage_change'],
+                direction=strategy['direction'],
+                position_type=strategy['position_type'],
+                stop_loss_pct=strategy.get('stop_loss_pct'),
+                take_profit_pct=strategy.get('take_profit_pct'),
+                name=strategy.get('name', 'SMA'),
+                type='PercentageSMAStrategy'
             )
         elif strategy['type'] == 'RSIStrategy':
-            backtester_strategies.append(
-                BackTesterRSIStrategy(
-                    period=strategy['period']
-                )
+            instance = BackTesterRSIStrategy(
+                period=strategy['period'],
+                rsi_threshold=strategy['rsi_threshold'],
+                position_type=strategy['position_type'],
+                stop_loss_pct=strategy.get('stop_loss_pct'),
+                take_profit_pct=strategy.get('take_profit_pct'),
+                name=strategy.get('name', 'RSI'),
+                type='RSIStrategy'
             )
         elif strategy['type'] == 'VolumeMAStrategy':
-            backtester_strategies.append(
-                BackTesterVolumeMAStrategy(
-                    days=strategy['days']
-                )
+            instance = BackTesterVolumeMAStrategy(
+                days=strategy['days']
             )
-    
+        # Set stop_loss_pct and take_profit_pct for all strategies if present
+        if instance is not None:
+            if 'stop_loss_pct' in strategy:
+                instance.stop_loss_pct = strategy['stop_loss_pct']
+            if 'take_profit_pct' in strategy:
+                instance.take_profit_pct = strategy['take_profit_pct']
+            backtester_strategies.append(instance)
     return backtester_strategies
 
 def _get_backtester_environment(env: Environment):
@@ -249,10 +282,6 @@ def _backtest(env: Environment, mongo_db):
     )
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    # Special case for test token
-    if token == TEST_TOKEN:
-        return User(username="user1")
-
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -265,7 +294,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
     return User(username=username)
 
 def verify_user_access(current_user: User, user_id: str):
@@ -305,8 +333,41 @@ def convert_objectid(item):
 async def get_environments(current_user: User = Depends(get_current_user)):
     """Get all environments for the authenticated user."""
     user_id = current_user.username
+    print(f"[GET ENVS] Fetching environments for user: {user_id}")
     envs = list(db.environments.find({"user_id": user_id}))
-    return [convert_objectid(env) for env in envs]
+    
+    # Convert MongoDB documents to Pydantic models
+    converted_envs = []
+    for env in envs:
+        # Ensure strategies have the correct type field
+        strategies = []
+        for strategy in env.get('strategies', []):
+            strategy_type = strategy.get('type')
+            if strategy_type == 'ExampleStrategy':
+                strategies.append(ExampleStrategy(**strategy))
+            elif strategy_type == 'ExampleStrategy2':
+                strategies.append(ExampleStrategy2(**strategy))
+            elif strategy_type == 'PercentageSMAStrategy':
+                strategies.append(PercentageSMAStrategy(**strategy))
+            elif strategy_type == 'RSIStrategy':
+                # Ensure all required fields are present
+                strategy_data = {
+                    'name': strategy.get('name', ''),
+                    'type': 'RSIStrategy',
+                    'period': strategy.get('period', 14),
+                    'rsi_threshold': strategy.get('rsi_threshold', 30.0),
+                    'position_type': strategy.get('position_type', 'long')
+                }
+                strategies.append(RSIStrategy(**strategy_data))
+        
+        # Convert dates from strings to date objects
+        env['start_date'] = datetime.strptime(env['start_date'], "%Y-%m-%d").date()
+        env['end_date'] = datetime.strptime(env['end_date'], "%Y-%m-%d").date()
+        env['strategies'] = strategies
+        
+        converted_envs.append(Environment(**env))
+    
+    return converted_envs
 
 @app.get("/{env_name}", response_model=Environment)
 async def get_environment(
@@ -405,7 +466,7 @@ class CreateEnvironmentRequest(BaseModel):
     end_date: date
 
 class AddStrategyRequest(BaseModel):
-    strategy: Union[ExampleStrategy, ExampleStrategy2, SMAStrategy, RSIStrategy, VolumeMAStrategy]
+    strategy: Union[ExampleStrategy, ExampleStrategy2, PercentageSMAStrategy, RSIStrategy]
 
 @app.post("/environments", status_code=status.HTTP_200_OK, response_class=Response)
 async def create_environment(
@@ -414,6 +475,7 @@ async def create_environment(
 ):
     """Create a new environment for the current user."""
     user_id = current_user.username
+    print(f"[CREATE ENV] Creating environment for user: {user_id}")
     
     # Check if environment with this name already exists
     existing = db.environments.find_one({"user_id": user_id, "name": request.name})
@@ -459,10 +521,13 @@ async def add_strategy(
             detail="Strategy with this name already exists in this environment"
         )
     
+    # Convert strategy to dict and ensure all fields are present
+    strategy_dict = request.strategy.dict()
+    
     # Add the strategy
     db.environments.update_one(
         {"_id": env["_id"]},
-        {"$push": {"strategies": request.strategy.dict()}}
+        {"$push": {"strategies": strategy_dict}}
     )
     
     return Response(status_code=status.HTTP_200_OK)
@@ -564,3 +629,68 @@ async def update_environment(
     db.trades.delete_one({"environment_id": env_id})
     
     return Response(status_code=status.HTTP_200_OK)
+
+@app.post("/signup", response_model=Token)
+async def signup(user_data: UserCreate):
+    # Check if username already exists
+    if users_collection.find_one({"username": user_data.username}):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already registered"
+        )
+    
+    # Create new user
+    user_doc = {
+        "username": user_data.username,
+        "password_hash": get_password_hash(user_data.password)
+    }
+    users_collection.insert_one(user_doc)
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_data.username},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/login", response_model=Token)
+async def login(user_data: UserLogin):
+    # Find user in database
+    user = users_collection.find_one({"username": user_data.username})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Verify password
+    if not verify_password(user_data.password, user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_data.username},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.put("/example-protected-endpoint", status_code=200)
+async def example_protected_endpoint(
+    request: ExampleRequest = Body(...),
+    current_user: User = Depends(get_current_user)
+):
+    username = current_user.username
+    if username is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    # Example logic using the username for user separation
+    # service.do_something(username, request.value)
+    return {"message": f"Operation was successful for user {username}"}

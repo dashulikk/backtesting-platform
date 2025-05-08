@@ -56,9 +56,10 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
   const fetchEnvironments = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8000/envs', {
         headers: {
-          'Authorization': 'Bearer test-token-for-user1'
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
       
@@ -79,6 +80,7 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
     if (!editingEnv) return;
     
     try {
+      const token = localStorage.getItem('token');
       const createData = {
         name: editName,
         stocks: editStocks,
@@ -90,8 +92,8 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
       const editResponse = await fetch(`http://localhost:8000/environments/${encodeURIComponent(editingEnv.name)}`, {
         method: 'PUT',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1',
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(createData),
       });
@@ -115,10 +117,11 @@ const EnvironmentsPage = ({ onBack, onNavigate }) => {
     if (!environmentToDelete) return;
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:8000/environments/${environmentToDelete.name}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': 'Bearer test-token-for-user1'
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
       
